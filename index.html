@@ -214,14 +214,14 @@ select option{background:var(--sf2)}
               <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
             </button>
             <div class="dd-menu hidden" id="period-menu">
-              <div class="ddi active" data-p="month">Este mês</div>
-              <div class="ddi" data-p="week">Esta semana</div>
-              <div class="ddi" data-p="today">Hoje</div>
-              <div class="ddi" data-p="30d">Últimos 30 dias</div>
-              <div class="ddi" data-p="lmonth">Mês anterior</div>
-              <div class="ddi" data-p="quarter">Este trimestre</div>
-              <div class="ddi" data-p="ytd">YTD (ano até hoje)</div>
-              <div class="ddi" data-p="all">Todo o período</div>
+              <div class="ddi active" data-p="month" data-lbl="Este mês">Este mês</div>
+              <div class="ddi" data-p="week" data-lbl="Esta semana">Esta semana</div>
+              <div class="ddi" data-p="today" data-lbl="Hoje">Hoje</div>
+              <div class="ddi" data-p="30d" data-lbl="Últimos 30 dias">Últimos 30 dias</div>
+              <div class="ddi" data-p="lmonth" data-lbl="Mês anterior">Mês anterior</div>
+              <div class="ddi" data-p="quarter" data-lbl="Este trimestre">Este trimestre</div>
+              <div class="ddi" data-p="ytd" data-lbl="YTD">YTD (ano até hoje)</div>
+              <div class="ddi" data-p="all" data-lbl="Todo período">Todo o período</div>
             </div>
           </div>
           <!-- conta filter -->
@@ -254,20 +254,20 @@ select option{background:var(--sf2)}
         <!-- métricas Tradezella style -->
         <div id="d-metrics"></div>
         <!-- charts row 1 -->
-        <div style="display:grid;grid-template-columns:1fr 260px;gap:.75rem">
+        <div style="display:grid;grid-template-columns:1fr 290px;gap:.75rem">
           <div class="cc"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem"><p class="cctitle" style="margin:0">P&L acumulado</p><span id="pnl-val" style="font-family:var(--mono);font-size:12px;font-weight:500"></span></div><canvas id="c-pnl" style="max-height:200px"></canvas></div>
-          <div class="cc" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5rem">
+          <div class="cc" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.75rem;min-height:260px">
             <p class="cctitle" style="align-self:flex-start;margin:0">Taxa de acerto</p>
-            <div style="position:relative;width:130px;height:130px">
-              <canvas id="c-donut"></canvas>
+            <div style="position:relative;width:150px;height:150px;flex-shrink:0">
+              <canvas id="c-donut" width="150" height="150" style="display:block"></canvas>
               <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none">
-                <span id="d-pct" style="font-family:var(--mono);font-size:22px;font-weight:500"></span>
+                <span id="d-pct" style="font-family:var(--mono);font-size:24px;font-weight:500;color:var(--tx)">0%</span>
                 <span style="font-size:10px;color:var(--mt)">acerto</span>
               </div>
             </div>
-            <div style="display:flex;gap:1.2rem">
-              <div style="text-align:center"><div style="font-size:10px;color:var(--gn)">● Ganhos</div><div id="d-g" style="font-family:var(--mono);font-size:13px;font-weight:500;color:var(--gn)"></div></div>
-              <div style="text-align:center"><div style="font-size:10px;color:var(--ls)">● Perdas</div><div id="d-l" style="font-family:var(--mono);font-size:13px;font-weight:500;color:var(--ls)"></div></div>
+            <div style="display:flex;gap:1.5rem">
+              <div style="text-align:center"><div style="font-size:10px;color:var(--gn);margin-bottom:2px">● Ganhos</div><div id="d-g" style="font-family:var(--mono);font-size:14px;font-weight:500;color:var(--gn)">0</div></div>
+              <div style="text-align:center"><div style="font-size:10px;color:var(--ls);margin-bottom:2px">● Perdas</div><div id="d-l" style="font-family:var(--mono);font-size:14px;font-weight:500;color:var(--ls)">0</div></div>
             </div>
           </div>
         </div>
@@ -666,7 +666,21 @@ function renderDash(){
   const ctx3=$('c-donut');
   if(ctx3){
     const hasOps=ganhos.length+perdas.length>0;
-    cDonut=new Chart(ctx3,{type:'doughnut',data:{datasets:[{data:hasOps?[ganhos.length,Math.max(perdas.length,0.001)]:[1],backgroundColor:hasOps?['#22d08a','#f05252']:['#252a35'],borderWidth:0,hoverOffset:4}]},options:{responsive:false,cutout:'72%',plugins:{legend:{display:false}}}});
+    cDonut=new Chart(ctx3,{
+      type:'doughnut',
+      data:{datasets:[{
+        data:hasOps?[ganhos.length,Math.max(perdas.length,0.001)]:[0.001,1],
+        backgroundColor:hasOps?['#22d08a','#f05252']:['#22d08a','#252a35'],
+        borderWidth:0,
+        hoverOffset:0
+      }]},
+      options:{
+        responsive:false,
+        animation:false,
+        cutout:'72%',
+        plugins:{legend:{display:false},tooltip:{enabled:false}}
+      }
+    });
     if($('d-pct'))$('d-pct').textContent=taxa+'%';
     if($('d-g'))$('d-g').textContent=ganhos.length+' ops';
     if($('d-l'))$('d-l').textContent=perdas.length+' ops';

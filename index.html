@@ -1,4 +1,4 @@
-]<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8" />
@@ -407,11 +407,23 @@ function buildSidebar(role){
 
 // ── init ──
 window.addEventListener('DOMContentLoaded', async()=>{
+  // timeout de seguranca: se em 8s nao carregou, vai pro login
+  const safetyTimer=setTimeout(()=>{
+    hide($('loading'));
+    showAuth();
+  },8000);
   try{
-    const {data:{session}} = await db.auth.getSession();
+    const {data:{session}} = await Promise.race([
+      db.auth.getSession(),
+      new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),6000))
+    ]);
+    clearTimeout(safetyTimer);
     if(session){user=session.user;await loadApp();}
     else showAuth();
-  }catch(e){showAuth();}
+  }catch(e){
+    clearTimeout(safetyTimer);
+    showAuth();
+  }
   hide($('loading'));
 });
 
@@ -471,26 +483,42 @@ $('btn-logout').onclick=async()=>{
 // ── load app ──
 async function loadApp(){
   hide($('screen-auth')); show($('screen-app'));
-  const {data:p}=await db.from('profiles').select('*').eq('id',user.id).single();
-  if(!p){
-    // perfil não existe, cria
+  try{
+    // sempre define perfil local primeiro para nunca travar
     const nome=user.user_metadata?.nome||user.email.split('@')[0];
-    await db.from('profiles').upsert({id:user.id,nome,email:user.email,role:'aluno'},{onConflict:'id'});
-    profile={id:user.id,nome,email:user.email,role:'aluno'};
-  } else {
-    profile=p;
-  }
-  $('ui-avatar').textContent=initials(profile.nome);
-  $('ui-name').textContent=profile.nome;
-  $('ui-email').textContent=profile.email;
-  buildSidebar(profile.role);
+    const isProf=(user.email===PROFESSOR_EMAIL);
+    profile={id:user.id,nome,email:user.email,role:isProf?'professor':'aluno'};
 
-  if(profile.role==='professor'){
-    await loadProfessor();
-    navTo('pg-prof-geral');
-  } else {
-    await loadAluno();
-    navTo('pg-dashboard');
+    // tenta buscar/criar perfil no banco (nao bloqueia se falhar)
+    try{
+      const {data:p}=await Promise.race([
+        db.from('profiles').select('*').eq('id',user.id).single(),
+        new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),4000))
+      ]);
+      if(p) profile=p;
+      else await db.from('profiles').upsert({id:user.id,nome,email:user.email,role:isProf?'professor':'aluno'},{onConflict:'id'});
+    }catch(e){
+      // se falhar, usa perfil local baseado no email
+      console.warn('profile fetch failed, using local',e.message);
+    }
+
+    $('ui-avatar').textContent=initials(profile.nome);
+    $('ui-name').textContent=profile.nome;
+    $('ui-email').textContent=profile.email;
+    buildSidebar(profile.role);
+
+    if(profile.role==='professor'){
+      await loadProfessor();
+      navTo('pg-prof-geral');
+    } else {
+      await loadAluno();
+      navTo('pg-dashboard');
+    }
+  }catch(e){
+    console.error('loadApp error',e);
+    // nunca trava — vai para login
+    hide($('loading'));
+    showAuth();
   }
 }
 

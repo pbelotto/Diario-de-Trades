@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+]<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8" />
@@ -220,7 +220,7 @@ select option{background:var(--surface2)}
     <div class="page" id="pg-dashboard">
       <div class="page-header">
         <span class="page-title">Dashboard</span>
-        <div style="display:flex;align-items:center;gap:.5rem">
+        <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
           <div class="chips" id="conta-chips"></div>
           <button class="btn btn-sm" id="btn-nova-conta">+ Conta</button>
         </div>
@@ -238,12 +238,45 @@ select option{background:var(--surface2)}
           </div>
         </div>
         <div class="metrics-grid" id="dash-metrics"></div>
-        <div class="charts-grid" id="dash-charts">
-          <div class="chart-card"><p class="chart-title">P&L acumulado</p><canvas id="chart-pnl"></canvas></div>
-          <div class="chart-card"><p class="chart-title">Resultado por operação</p><canvas id="chart-bar"></canvas></div>
+        <div style="display:grid;grid-template-columns:1fr 280px;gap:.75rem">
+          <div class="chart-card">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
+              <p class="chart-title" style="margin:0">P&L acumulado</p>
+              <span id="pnl-badge" style="font-family:var(--mono);font-size:12px;font-weight:500"></span>
+            </div>
+            <canvas id="chart-pnl" style="max-height:200px"></canvas>
+          </div>
+          <div class="chart-card" style="display:flex;flex-direction:column;align-items:center;justify-content:center">
+            <p class="chart-title" style="margin-bottom:.5rem;align-self:flex-start">Taxa de acerto</p>
+            <div style="position:relative;width:140px;height:140px">
+              <canvas id="chart-donut"></canvas>
+              <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none">
+                <span id="donut-pct" style="font-family:var(--mono);font-size:24px;font-weight:500"></span>
+                <span style="font-size:10px;color:var(--muted)">acerto</span>
+              </div>
+            </div>
+            <div style="display:flex;gap:1rem;margin-top:.75rem">
+              <div style="text-align:center"><div style="font-size:10px;color:var(--gain)">&#9679; Ganhos</div><div id="donut-g" style="font-family:var(--mono);font-size:13px;font-weight:500;color:var(--gain)"></div></div>
+              <div style="text-align:center"><div style="font-size:10px;color:var(--loss)">&#9679; Perdas</div><div id="donut-l" style="font-family:var(--mono);font-size:13px;font-weight:500;color:var(--loss)"></div></div>
+            </div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+          <div class="chart-card">
+            <p class="chart-title">P&L por operacao</p>
+            <canvas id="chart-bar" style="max-height:180px"></canvas>
+          </div>
+          <div class="chart-card">
+            <p class="chart-title">Resultado por setup</p>
+            <canvas id="chart-setup" style="max-height:180px"></canvas>
+          </div>
+        </div>
+        <div class="chart-card">
+          <p class="chart-title">Calendario de P&L - <span id="cal-month"></span></p>
+          <div id="dash-calendar" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:.25rem"></div>
         </div>
         <div class="card">
-          <p class="card-title">Operações recentes</p>
+          <p class="card-title">Operacoes recentes</p>
           <div id="dash-ops-table"></div>
         </div>
       </div>
@@ -317,6 +350,7 @@ const db = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let user=null, profile=null, contas=[], ops=[], allUsers=[];
 let activeConta=null, currentPage='pg-dashboard', chartPnl=null, chartBar=null;
+let chartDonut=null, chartSetup=null;
 
 // ── utils ──
 const $=id=>document.getElementById(id);
@@ -537,57 +571,109 @@ $('btn-salvar-op').onclick=async()=>{
 };
 
 // dashboard
+let chartPnl2=null,chartBar2=null,chartDonut=null,chartSetup=null;
+function destroyCharts(){[chartPnl,chartPnl2,chartBar,chartBar2,chartDonut,chartSetup].forEach(c=>{try{if(c)c.destroy()}catch(e){}});chartPnl=chartPnl2=chartBar=chartBar2=chartDonut=chartSetup=null;}
+const CGRID={color:'#1e2330'};
+const CTICK={color:'#7a8299',font:{size:10}};
+function baseOpts(yFmt){return{responsive:true,maintainAspectRatio:true,plugins:{legend:{display:false},tooltip:{backgroundColor:'#1c2029',borderColor:'#2e3545',borderWidth:1,titleColor:'#e8eaf0',bodyColor:'#7a8299'}},scales:{x:{ticks:CTICK,grid:CGRID},y:{ticks:{...CTICK,callback:yFmt||((v)=>'$'+v)},grid:CGRID}}};}
+
 function renderDashboard(){
+  destroyCharts();
   const co=ops.filter(o=>o.conta_id===activeConta);
+  const sorted=co.slice().sort((a,b)=>a.data.localeCompare(b.data));
   const totalConta=co.reduce((s,o)=>s+o.resultado,0);
   const totalGeral=ops.reduce((s,o)=>s+o.resultado,0);
-  const ganhos=co.filter(o=>o.resultado>0).length;
-  const taxa=co.length?Math.round(ganhos/co.length*100):0;
-  const fatorLucro=(()=>{
-    const g=co.filter(o=>o.resultado>0).reduce((s,o)=>s+o.resultado,0);
-    const l=Math.abs(co.filter(o=>o.resultado<0).reduce((s,o)=>s+o.resultado,0));
-    return l?+(g/l).toFixed(2):g>0?'∞':'—';
-  })();
+  const ganhos=co.filter(o=>o.resultado>0);
+  const perdas=co.filter(o=>o.resultado<0);
+  const taxa=co.length?Math.round(ganhos.length/co.length*100):0;
+  const grossG=ganhos.reduce((s,o)=>s+o.resultado,0);
+  const grossL=Math.abs(perdas.reduce((s,o)=>s+o.resultado,0));
+  const fator=grossL?+(grossG/grossL).toFixed(2):grossG>0?'inf':'--';
+  const avgG=ganhos.length?+(grossG/ganhos.length).toFixed(2):0;
+  const avgL=perdas.length?+(grossL/perdas.length).toFixed(2):0;
+  const maxG=ganhos.length?Math.max(...ganhos.map(o=>o.resultado)):0;
+  const maxL=perdas.length?Math.max(...perdas.map(o=>Math.abs(o.resultado))):0;
 
   $('dash-metrics').innerHTML=`
-    <div class="metric"><div class="metric-label">P&L conta atual</div><div class="metric-val ${totalConta>=0?'pos':'neg'}">${fmt(totalConta)}</div><div class="metric-sub">resultado acumulado</div></div>
-    <div class="metric"><div class="metric-label">P&L todas as contas</div><div class="metric-val ${totalGeral>=0?'pos':'neg'}">${fmt(totalGeral)}</div><div class="metric-sub">capital próprio + mesas</div></div>
-    <div class="metric"><div class="metric-label">Taxa de acerto</div><div class="metric-val neu">${taxa}%</div><div class="metric-sub">${ganhos} de ${co.length} ops</div></div>
-    <div class="metric"><div class="metric-label">Fator de lucro</div><div class="metric-val neu">${fatorLucro}</div><div class="metric-sub">ganhos ÷ perdas</div></div>
+    <div class="metric"><div class="metric-label">Net P&L</div><div class="metric-val ${totalConta>=0?'pos':'neg'}">${fmt(totalConta)}</div><div class="metric-sub">conta atual</div></div>
+    <div class="metric"><div class="metric-label">Total consolidado</div><div class="metric-val ${totalGeral>=0?'pos':'neg'}">${fmt(totalGeral)}</div><div class="metric-sub">todas as contas</div></div>
+    <div class="metric"><div class="metric-label">Fator de lucro</div><div class="metric-val neu">${fator}</div><div class="metric-sub">ganhos / perdas</div></div>
+    <div class="metric"><div class="metric-label">Ganho medio</div><div class="metric-val pos">+$${avgG.toFixed(2)}</div><div class="metric-sub">por trade vencedor</div></div>
+    <div class="metric"><div class="metric-label">Perda media</div><div class="metric-val neg">-$${avgL.toFixed(2)}</div><div class="metric-sub">por trade perdedor</div></div>
+    <div class="metric"><div class="metric-label">Maior ganho</div><div class="metric-val pos">+$${maxG.toFixed(2)}</div><div class="metric-sub">melhor operacao</div></div>
+    <div class="metric"><div class="metric-label">Maior perda</div><div class="metric-val neg">-$${maxL.toFixed(2)}</div><div class="metric-sub">pior operacao</div></div>
   `;
 
-  // gráfico P&L acumulado
-  const sorted=co.slice().sort((a,b)=>a.data.localeCompare(b.data));
+  // ── P&L acumulado (linha + area gradiente)
   let acc=0;
   const pnlData=sorted.map(o=>{acc+=o.resultado;return+acc.toFixed(2)});
-  const labels=sorted.map(o=>fmtD(o.data));
-
-  if(chartPnl) chartPnl.destroy();
+  const pnlLabels=sorted.map((o,i)=>i%Math.max(1,Math.floor(sorted.length/8))===0?fmtD(o.data):'');
+  const positivo=totalConta>=0;
+  const pnlColor=positivo?'#22d08a':'#f05252';
   const ctx1=document.getElementById('chart-pnl');
   if(ctx1&&co.length){
-    chartPnl=new Chart(ctx1,{
-      type:'line',
-      data:{labels,datasets:[{label:'P&L',data:pnlData,borderColor:'#4f7fff',backgroundColor:'rgba(79,127,255,.08)',fill:true,tension:.3,pointRadius:3,pointBackgroundColor:'#4f7fff'}]},
-      options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#7a8299',font:{size:10}},grid:{color:'#252a35'}},y:{ticks:{color:'#7a8299',font:{size:10},callback:v=>'$'+v},grid:{color:'#252a35'}}}}
-    });
-  } else if(ctx1){ctx1.getContext('2d').clearRect(0,0,ctx1.width,ctx1.height);}
+    const grad=ctx1.getContext('2d').createLinearGradient(0,0,0,200);
+    grad.addColorStop(0,positivo?'rgba(34,208,138,.25)':'rgba(240,82,82,.25)');
+    grad.addColorStop(1,'rgba(0,0,0,0)');
+    chartPnl=new Chart(ctx1,{type:'line',data:{labels:sorted.map((_,i)=>i),datasets:[{data:pnlData,borderColor:pnlColor,backgroundColor:grad,fill:true,tension:.35,pointRadius:sorted.length>30?0:3,pointBackgroundColor:pnlColor,pointHoverRadius:5,borderWidth:2}]},
+      options:{...baseOpts(),plugins:{legend:{display:false},tooltip:{callbacks:{title:([i])=>fmtD(sorted[i.dataIndex]?.data),label:i=>'P&L: '+fmt(i.raw)}}},scales:{x:{display:false,grid:{display:false}},y:{ticks:CTICK,grid:CGRID}}}});
+    if($('pnl-badge')) $('pnl-badge').innerHTML=`<span style="color:${pnlColor}">${fmt(totalConta)}</span>`;
+  }
 
-  // gráfico barras
-  if(chartBar) chartBar.destroy();
+  // ── Donut taxa de acerto
+  const ctx3=document.getElementById('chart-donut');
+  if(ctx3){
+    chartDonut=new Chart(ctx3,{type:'doughnut',data:{datasets:[{data:[ganhos.length,perdas.length],backgroundColor:['#22d08a','#f05252'],borderWidth:0,hoverOffset:4}]},
+      options:{responsive:false,cutout:'72%',plugins:{legend:{display:false},tooltip:{callbacks:{label:i=>i.label+': '+i.raw+' ops'}}}}});
+    if($('donut-pct')) $('donut-pct').textContent=taxa+'%';
+    if($('donut-g')) $('donut-g').textContent=ganhos.length+' ops';
+    if($('donut-l')) $('donut-l').textContent=perdas.length+' ops';
+  }
+
+  // ── Barras P&L por operacao
   const ctx2=document.getElementById('chart-bar');
   if(ctx2&&co.length){
-    const last=sorted.slice(-20);
-    chartBar=new Chart(ctx2,{
-      type:'bar',
-      data:{labels:last.map(o=>o.ativo),datasets:[{label:'Resultado',data:last.map(o=>o.resultado),backgroundColor:last.map(o=>o.resultado>=0?'rgba(34,208,138,.7)':'rgba(240,82,82,.7)'),borderRadius:4}]},
-      options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#7a8299',font:{size:10}},grid:{display:false}},y:{ticks:{color:'#7a8299',font:{size:10},callback:v=>'$'+v},grid:{color:'#252a35'}}}}
-    });
-  } else if(ctx2){ctx2.getContext('2d').clearRect(0,0,ctx2.width,ctx2.height);}
+    const last=sorted.slice(-25);
+    chartBar=new Chart(ctx2,{type:'bar',data:{labels:last.map(o=>o.ativo),datasets:[{data:last.map(o=>o.resultado),backgroundColor:last.map(o=>o.resultado>=0?'rgba(34,208,138,.75)':'rgba(240,82,82,.75)'),borderRadius:3,borderSkipped:false}]},
+      options:{...baseOpts(),scales:{x:{ticks:{...CTICK,maxRotation:0},grid:{display:false}},y:{ticks:CTICK,grid:CGRID}}}});
+  }
 
-  // tabela recente
-  const recent=co.slice().sort((a,b)=>b.data.localeCompare(a.data)).slice(0,8);
+  // ── Resultado por setup (barras horizontais)
+  const ctx4=document.getElementById('chart-setup');
+  if(ctx4&&co.length){
+    const bySetup={};
+    co.forEach(o=>{if(!bySetup[o.setup])bySetup[o.setup]={res:0,n:0};bySetup[o.setup].res+=o.resultado;bySetup[o.setup].n++;});
+    const setupEntries=Object.entries(bySetup).sort((a,b)=>b[1].res-a[1].res);
+    chartSetup=new Chart(ctx4,{type:'bar',data:{labels:setupEntries.map(([k])=>k),datasets:[{data:setupEntries.map(([,v])=>+v.res.toFixed(2)),backgroundColor:setupEntries.map(([,v])=>v.res>=0?'rgba(79,127,255,.75)':'rgba(240,82,82,.75)'),borderRadius:3}]},
+      options:{...baseOpts(),indexAxis:'y',scales:{x:{ticks:CTICK,grid:CGRID},y:{ticks:{...CTICK,font:{size:11}},grid:{display:false}}}}});
+  }
+
+  // ── Calendario de P&L
+  const now=new Date();
+  const yr=now.getFullYear(),mo=now.getMonth();
+  if($('cal-month')) $('cal-month').textContent=now.toLocaleString('pt-BR',{month:'long',year:'numeric'});
+  const byDay={};
+  co.forEach(o=>{const d=o.data?.slice(0,10);if(d)byDay[d]=(byDay[d]||0)+o.resultado;});
+  const firstDay=new Date(yr,mo,1).getDay();
+  const daysInMonth=new Date(yr,mo+1,0).getDate();
+  const cal=$('dash-calendar');
+  if(cal){
+    const dayNames=['Dom','Seg','Ter','Qua','Qui','Sex','Sab'];
+    cal.innerHTML=dayNames.map(d=>`<div style="font-size:10px;color:var(--muted);text-align:center;padding:2px 0">${d}</div>`).join('');
+    for(let i=0;i<firstDay;i++) cal.innerHTML+=`<div></div>`;
+    for(let d=1;d<=daysInMonth;d++){
+      const key=`${yr}-${String(mo+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const val=byDay[key];
+      const bg=val===undefined?'var(--surface2)':val>=0?`rgba(34,208,138,${Math.min(.9,Math.abs(val)/200+.15)})`:`rgba(240,82,82,${Math.min(.9,Math.abs(val)/200+.15)})`;
+      const txt=val!==undefined?`title="${val>=0?'+':''}$${val.toFixed(0)}"` :'';
+      cal.innerHTML+=`<div ${txt} style="background:${bg};border-radius:4px;height:32px;display:flex;align-items:center;justify-content:center;font-size:10px;font-family:var(--mono);color:${val===undefined?'var(--muted)':'var(--text)'}${d===now.getDate()&&mo===now.getMonth()?';outline:1px solid var(--accent)':''}">${d}</div>`;
+    }
+  }
+
+  // ── Tabela operacoes recentes
+  const recent=co.slice().sort((a,b)=>b.data.localeCompare(a.data)).slice(0,10);
   $('dash-ops-table').innerHTML=recent.length?`<div class="tbl-wrap"><table>
-    <thead><tr><th>Data</th><th>Ativo</th><th>Direção</th><th>Qtd</th><th>Resultado</th><th>Setup</th><th></th></tr></thead>
+    <thead><tr><th>Data</th><th>Ativo</th><th>Direcao</th><th>Qtd</th><th>Resultado</th><th>Setup</th><th>Obs</th><th></th></tr></thead>
     <tbody>${recent.map(o=>`<tr>
       <td style="font-family:var(--mono);font-size:12px">${fmtD(o.data)}</td>
       <td><strong>${o.ativo}</strong></td>
@@ -595,16 +681,17 @@ function renderDashboard(){
       <td>${o.quantidade}</td>
       <td style="font-family:var(--mono);font-weight:500;color:${o.resultado>=0?'var(--gain)':'var(--loss)'}">${fmt(o.resultado)}</td>
       <td><span class="badge badge-info">${o.setup||'-'}</span></td>
-      <td><button class="btn btn-sm btn-danger" data-del="${o.id}">×</button></td>
+      <td style="color:var(--muted);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${o.obs||'-'}</td>
+      <td><button class="btn btn-sm btn-danger" data-del="${o.id}">x</button></td>
     </tr>`).join('')}</tbody>
-  </table></div>`:`<div class="empty">Nenhuma operação nesta conta.<br><button class="btn btn-primary btn-sm" onclick="navTo('pg-lancar')" style="margin-top:.75rem">Lançar primeira operação</button></div>`;
+  </table></div>`:`<div class="empty">Nenhuma operacao nesta conta.<br><button class="btn btn-primary btn-sm" onclick="navTo('pg-lancar')" style="margin-top:.75rem">Lancar primeira operacao</button></div>`;
 
   $('dash-ops-table').querySelectorAll('[data-del]').forEach(btn=>{
     btn.addEventListener('click',async()=>{
-      if(!confirm('Remover operação?'))return;
+      if(!confirm('Remover operacao?'))return;
       await db.from('operacoes').delete().eq('id',btn.dataset.del);
       ops=ops.filter(o=>o.id!==btn.dataset.del);
-      renderDashboard(); toast('Removida.','ok');
+      renderDashboard();toast('Removida.','ok');
     });
   });
 }

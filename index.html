@@ -502,10 +502,11 @@ async function loadAluno(){
   buildContaMenu();
   $('op-d').value=new Date().toISOString().slice(0,10);
   // close dropdowns on outside click
-  document.addEventListener('click',()=>{
+  document.addEventListener('click',(e)=>{
     const pm=$('period-menu'),cm=$('cfil-menu');
-    if(pm)pm.classList.add('hidden');
-    if(cm)cm.classList.add('hidden');
+    const bp=$('btn-period'),bc=$('btn-cfil');
+    if(pm&&!pm.contains(e.target)&&e.target!==bp&&!bp?.contains(e.target))pm.classList.add('hidden');
+    if(cm&&!cm.contains(e.target)&&e.target!==bc&&!bc?.contains(e.target))cm.classList.add('hidden');
   });
 }
 
@@ -534,11 +535,11 @@ function buildPeriodMenu(){
 function buildContaMenu(){
   const btn=$('btn-cfil'),menu=$('cfil-menu'),items=$('cfil-items');
   if(!btn||!menu||!items)return;
-  btn.addEventListener('click',e=>{e.stopPropagation();menu.classList.toggle('hidden');const pm=$('period-menu');if(pm)pm.classList.add('hidden');});
+  btn.onclick=e=>{e.stopPropagation();menu.classList.toggle('hidden');const pm=$('period-menu');if(pm)pm.classList.add('hidden');};
   items.innerHTML=contas.length?`<div class="dd-sep"></div><div class="dd-sec">Minhas contas</div>`+
     contas.map(c=>`<div class="ddi" data-cid="${c.id}" style="display:flex;align-items:center;gap:.5rem"><span style="width:7px;height:7px;border-radius:50%;background:${c.tipo==='proprio'?'var(--ac)':'var(--wn)'};flex-shrink:0"></span>${c.nome}<span style="font-size:10px;color:var(--mt);margin-left:auto">${c.tipo==='proprio'?'Próprio':'Mesa'}</span></div>`).join(''):'';
   menu.querySelectorAll('.ddi').forEach(item=>{
-    item.addEventListener('click',e=>{
+    item.onclick=e=>{
       e.stopPropagation();
       activeContaFil=item.dataset.cid||'all';
       const c=contas.find(x=>x.id===activeContaFil);
@@ -547,7 +548,7 @@ function buildContaMenu(){
       item.classList.add('active');
       menu.classList.add('hidden');
       renderDash();
-    });
+    };
   });
 }
 
@@ -664,7 +665,8 @@ function renderDash(){
   // donut
   const ctx3=$('c-donut');
   if(ctx3){
-    cDonut=new Chart(ctx3,{type:'doughnut',data:{datasets:[{data:[ganhos.length||0,perdas.length||(ganhos.length?0:1)],backgroundColor:['#22d08a','#f05252'],borderWidth:0,hoverOffset:4}]},options:{responsive:false,cutout:'72%',plugins:{legend:{display:false}}}});
+    const hasOps=ganhos.length+perdas.length>0;
+    cDonut=new Chart(ctx3,{type:'doughnut',data:{datasets:[{data:hasOps?[ganhos.length,Math.max(perdas.length,0.001)]:[1],backgroundColor:hasOps?['#22d08a','#f05252']:['#252a35'],borderWidth:0,hoverOffset:4}]},options:{responsive:false,cutout:'72%',plugins:{legend:{display:false}}}});
     if($('d-pct'))$('d-pct').textContent=taxa+'%';
     if($('d-g'))$('d-g').textContent=ganhos.length+' ops';
     if($('d-l'))$('d-l').textContent=perdas.length+' ops';

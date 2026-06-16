@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Diário de Trades</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  /* ── tokens ───────────────────────────────────────────── */
+  :root {
+    --bg:        #0b0d10;
+    --surface:   #13161c;
+    --surface2:  #1c2029;
+    --border:    #252a35;
+    --border2:   #2e3545;
+    --text:      #e8eaf0;
+    --muted:     #7a8299;
+    --gain:      #22d08a;
+    --gain-bg:   rgba(34,208,138,.10);
+    --loss:      #f05252;
+    --loss-bg:   rgba(240,82,82,.10);
+    --accent:    #4f7fff;
+    --accent-bg: rgba(79,127,255,.12);
+    --warn:      #f0b429;
+    --warn-bg:   rgba(240,180,41,.10);
+    --radius:    8px;
+    --radius-lg: 12px;
+    --mono:      'JetBrains Mono', monospace;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ── layout ───────────────────────────────────────────── */
+  .wrap   { max-width: 960px; margin: 0 auto; padding: 0 1rem; }
+  .hidden { display: none !important; }
+
+  /* ── topbar ───────────────────────────────────────────── */
+  .topbar {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(11,13,16,.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: .75rem 0;
+  }
+  .topbar-inner {
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .logo {
+    display: flex; align-items: center; gap: .5rem;
+    font-family: var(--mono); font-size: 15px; font-weight: 500;
+    color: var(--text); letter-spacing: -.3px;
+  }
+  .logo-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--gain); }
+  .user-badge {
+    display: flex; align-items: center; gap: .75rem;
+    font-size: 13px; color: var(--muted);
+  }
+  .avatar {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: var(--accent-bg); border: 1px solid var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 600; color: var(--accent);
+  }
+
+  /* ── cards ────────────────────────────────────────────── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem;
+  }
+  .card-sm { padding: 1rem; }
+
+  /* ── metric cards ─────────────────────────────────────── */
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit,minmax(150px,1fr)); gap: .75rem; }
+  .metric { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; }
+  .metric-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; margin-bottom: .35rem; }
+  .metric-val { font-family: var(--mono); font-size: 20px; font-weight: 500; }
+  .metric-val.pos { color: var(--gain); }
+  .metric-val.neg { color: var(--loss); }
+  .metric-val.neutral { color: var(--text); }
+
+  /* ── tabs ─────────────────────────────────────────────── */
+  .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 1.25rem; }
+  .tab {
+    padding: .6rem 1rem; font-size: 13px; color: var(--muted);
+    cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px;
+    transition: color .15s;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* ── buttons ──────────────────────────────────────────── */
+  .btn {
+    padding: .5rem 1rem; border-radius: var(--radius);
+    border: 1px solid var(--border2); background: transparent;
+    color: var(--text); cursor: pointer; font-size: 13px; font-weight: 500;
+    transition: background .15s, border-color .15s;
+  }
+  .btn:hover { background: var(--surface2); border-color: var(--border2); }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-primary:hover { opacity: .88; background: var(--accent); }
+  .btn-sm { padding: .35rem .75rem; font-size: 12px; }
+  .btn-ghost { border-color: transparent; }
+  .btn-ghost:hover { background: var(--surface2); border-color: var(--border); }
+  .btn-danger { border-color: var(--loss); color: var(--loss); }
+  .btn-danger:hover { background: var(--loss-bg); }
+
+  /* ── forms ────────────────────────────────────────────── */
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; margin-top: 12px; }
+  input, select, textarea {
+    width: 100%; padding: .55rem .75rem;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius); color: var(--text); font-size: 14px;
+    font-family: inherit; transition: border-color .15s;
+  }
+  input:focus, select:focus, textarea:focus {
+    outline: none; border-color: var(--accent);
+  }
+  input::placeholder { color: var(--muted); }
+  select option { background: var(--surface2); }
+
+  /* ── badges ───────────────────────────────────────────── */
+  .badge {
+    display: inline-block; font-size: 11px; font-weight: 500;
+    padding: 2px 8px; border-radius: 20px;
+  }
+  .badge-gain  { background: var(--gain-bg);  color: var(--gain);  }
+  .badge-loss  { background: var(--loss-bg);  color: var(--loss);  }
+  .badge-info  { background: var(--accent-bg); color: var(--accent); }
+  .badge-warn  { background: var(--warn-bg);  color: var(--warn);  }
+  .badge-muted { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+
+  /* ── table ────────────────────────────────────────────── */
+  .tbl-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th {
+    text-align: left; padding: .6rem .75rem;
+    color: var(--muted); font-weight: 500;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px; text-transform: uppercase; letter-spacing: .5px;
+  }
+  td { padding: .65rem .75rem; border-bottom: 1px solid var(--border); color: var(--text); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,.02); }
+
+  /* ── login screen ─────────────────────────────────────── */
+  #screen-auth {
+    min-height: 100vh; display: flex;
+    align-items: center; justify-content: center; padding: 2rem;
+  }
+  .auth-box { width: 100%; max-width: 380px; }
+  .auth-logo {
+    text-align: center; margin-bottom: 2rem;
+    font-family: var(--mono); font-size: 22px; font-weight: 500;
+  }
+  .auth-logo small { display: block; font-size: 12px; color: var(--muted); font-family: 'Inter', sans-serif; font-weight: 400; margin-top: 4px; }
+  .auth-toggle { text-align: center; margin-top: 1rem; font-size: 13px; color: var(--muted); }
+  .auth-toggle a { color: var(--accent); cursor: pointer; text-decoration: none; }
+  .auth-toggle a:hover { text-decoration: underline; }
+  .auth-err { background: var(--loss-bg); border: 1px solid var(--loss); border-radius: var(--radius); padding: .6rem .85rem; font-size: 13px; color: var(--loss); margin-bottom: .75rem; }
+
+  /* ── chip accounts ────────────────────────────────────── */
+  .chips { display: flex; gap: .5rem; flex-wrap: wrap; }
+  .chip {
+    display: inline-flex; align-items: center; gap: .4rem;
+    padding: .35rem .85rem; border-radius: 20px;
+    border: 1px solid var(--border2); background: transparent;
+    color: var(--muted); cursor: pointer; font-size: 12px; font-weight: 500;
+    transition: all .15s;
+  }
+  .chip:hover { border-color: var(--accent); color: var(--text); }
+  .chip.active { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); }
+  .chip-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+
+  /* ── alert bar ────────────────────────────────────────── */
+  .alert-bar {
+    background: var(--loss-bg); border: 1px solid rgba(240,82,82,.3);
+    border-radius: var(--radius); padding: .6rem 1rem;
+    font-size: 13px; color: var(--loss); margin-bottom: 1rem;
+  }
+
+  /* ── bar chart ────────────────────────────────────────── */
+  .bar-row { display: flex; align-items: center; gap: .75rem; margin-bottom: .6rem; }
+  .bar-label { font-size: 12px; min-width: 50px; font-family: var(--mono); }
+  .bar-track { flex: 1; background: var(--surface2); border-radius: 3px; height: 6px; overflow: hidden; }
+  .bar-fill { height: 6px; border-radius: 3px; background: var(--accent); }
+  .bar-count { font-size: 11px; color: var(--muted); min-width: 40px; text-align: right; }
+
+  /* ── progress ring ────────────────────────────────────── */
+  .ring-wrap { display: flex; flex-direction: column; align-items: center; gap: .5rem; }
+  .ring-label { font-size: 12px; color: var(--muted); text-align: center; }
+
+  /* ── section title ────────────────────────────────────── */
+  .stitle { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: .85rem; }
+  .sdesc  { font-size: 12px; color: var(--muted); }
+
+  /* ── grid 2-col ───────────────────────────────────────── */
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .75rem; }
+  @media(max-width:600px) { .grid2,.grid3 { grid-template-columns: 1fr; } }
+
+  /* ── empty state ──────────────────────────────────────── */
+  .empty { text-align: center; padding: 2.5rem 1rem; color: var(--muted); }
+  .empty svg { opacity: .3; margin-bottom: .75rem; }
+  .empty p { font-size: 13px; }
+
+  /* ── toast ────────────────────────────────────────────── */
+  #toast {
+    position: fixed; bottom: 1.25rem; right: 1.25rem; z-index: 999;
+    background: var(--surface2); border: 1px solid var(--border2);
+    border-radius: var(--radius); padding: .65rem 1rem;
+    font-size: 13px; color: var(--text);
+    transform: translateY(6px); opacity: 0;
+    transition: all .2s; pointer-events: none;
+  }
+  #toast.show { transform: translateY(0); opacity: 1; }
+  #toast.ok  { border-color: var(--gain); color: var(--gain); }
+  #toast.err { border-color: var(--loss); color: var(--loss); }
+
+  /* ── student alert card ───────────────────────────────── */
+  .student-row {
+    display: flex; align-items: center; gap: .75rem;
+    padding: .75rem 0; border-bottom: 1px solid var(--border);
+  }
+  .student-row:last-child { border-bottom: none; }
+  .s-avatar {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: var(--surface2); border: 1px solid var(--border2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 600; color: var(--muted); flex-shrink: 0;
+  }
+  .s-name  { font-size: 13px; font-weight: 500; }
+  .s-email { font-size: 11px; color: var(--muted); }
+
+  /* ── loading ──────────────────────────────────────────── */
+  #loading {
+    position: fixed; inset: 0; background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 13px; color: var(--muted); z-index: 100;
+  }
+  .dot-ani::after { content: ''; animation: dots 1.2s infinite; }
+  @keyframes dots { 0%{content:'.'} 33%{content:'..'} 66%{content:'...'} }
+</style>
+</head>
+<body>
+
+<!-- loading -->
+<div id="loading"><span class="dot-ani">Carregando</span></div>
+
+<!-- toast -->
+<div id="toast"></div>
+
+<!-- ── AUTH ─────────────────────────────────────────────── -->
+<div id="screen-auth" class="hidden">
+  <div class="auth-box">
+    <div class="auth-logo">
+      <span>●</span> Diário de Trades
+      <small>Gerenciamento de risco · Daytrade</small>
+    </div>
+    <div id="auth-err" class="auth-err hidden"></div>
+
+    <div id="form-login">
+      <div class="card">
+        <label>E-mail</label>
+        <input id="in-email" type="email" placeholder="seu@email.com" />
+        <label>Senha</label>
+        <input id="in-senha" type="password" placeholder="••••••" />
+        <button class="btn btn-primary" id="btn-login" style="width:100%;margin-top:1rem">Entrar</button>
+      </div>
+      <div class="auth-toggle">Não tem conta? <a id="go-reg">Cadastre-se</a></div>
+    </div>
+
+    <div id="form-reg" class="hidden">
+      <div class="card">
+        <label>Nome completo</label>
+        <input id="in-nome" type="text" placeholder="Seu nome" />
+        <label>E-mail</label>
+        <input id="in-reg-email" type="email" placeholder="seu@email.com" />
+        <label>Senha</label>
+        <input id="in-reg-senha" type="password" placeholder="Mínimo 6 caracteres" />
+        <label>Confirmar senha</label>
+        <input id="in-reg-conf" type="password" placeholder="Repita a senha" />
+        <button class="btn btn-primary" id="btn-reg" style="width:100%;margin-top:1rem">Criar conta</button>
+      </div>
+      <div class="auth-toggle">Já tem conta? <a id="go-login">Entrar</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── APP ───────────────────────────────────────────────── -->
+<div id="screen-app" class="hidden">
+
+  <nav class="topbar">
+    <div class="wrap topbar-inner">
+      <div class="logo"><div class="logo-dot"></div>Diário de Trades</div>
+      <div class="user-badge">
+        <span id="ui-username"></span>
+        <div class="avatar" id="ui-avatar"></div>
+        <button class="btn btn-sm btn-ghost" id="btn-logout">Sair</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ALUNO VIEW -->
+  <div id="view-aluno" class="hidden">
+    <div class="wrap" style="padding-top:1.25rem;padding-bottom:3rem">
+
+      <!-- conta selector -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem">
+        <div class="chips" id="conta-chips"></div>
+        <button class="btn btn-sm" id="btn-nova-conta">+ Nova conta</button>
+      </div>
+
+      <!-- nova conta form -->
+      <div id="nova-conta-card" class="card hidden" style="margin-bottom:1rem">
+        <p class="stitle">Nova conta</p>
+        <div class="grid3">
+          <div><label>Nome</label><input id="nc-nome" placeholder="Ex: Mesa FTMO #2" /></div>
+          <div><label>Tipo</label><select id="nc-tipo"><option value="proprio">Capital Próprio</option><option value="mesa">Mesa Proprietária</option></select></div>
+          <div><label>Saldo inicial ($)</label><input id="nc-saldo" type="number" placeholder="0.00" /></div>
+        </div>
+        <div style="display:flex;gap:.5rem;margin-top:.85rem">
+          <button class="btn btn-primary btn-sm" id="btn-save-conta">Salvar conta</button>
+          <button class="btn btn-sm" id="btn-cancel-conta">Cancelar</button>
+        </div>
+      </div>
+
+      <!-- metrics -->
+      <div class="metrics" id="aluno-metrics" style="margin-bottom:1rem"></div>
+
+      <!-- tabs -->
+      <div class="tabs">
+        <div class="tab active" data-tab="ops">Operações</div>
+        <div class="tab" data-tab="lancar">+ Lançar</div>
+        <div class="tab" data-tab="historico">Histórico geral</div>
+      </div>
+
+      <!-- tab: operações -->
+      <div id="tab-ops">
+        <div id="ops-table-wrap"></div>
+      </div>
+
+      <!-- tab: lançar -->
+      <div id="tab-lancar" class="hidden">
+        <div class="card">
+          <p class="stitle">Lançar operação</p>
+          <div class="grid2">
+            <div><label>Conta</label><select id="op-conta"></select></div>
+            <div><label>Data</label><input id="op-data" type="date" /></div>
+          </div>
+          <div class="grid3">
+            <div><label>Ativo</label><input id="op-ativo" placeholder="NQ, ES, MES, EURUSD…" /></div>
+            <div><label>Direção</label><select id="op-dir"><option value="compra">Compra (Long)</option><option value="venda">Venda (Short)</option></select></div>
+            <div><label>Contratos / lotes</label><input id="op-qtd" type="number" min="1" value="1" /></div>
+          </div>
+          <div class="grid3">
+            <div><label>Stop Loss ($)</label><input id="op-sl" type="number" placeholder="0.00" /></div>
+            <div><label>Take Profit ($)</label><input id="op-tp" type="number" placeholder="0.00" /></div>
+            <div><label>Resultado ($)</label><input id="op-res" type="number" placeholder="-250.00" /></div>
+          </div>
+          <div class="grid2" style="margin-top:0">
+            <div><label>Setup</label><select id="op-setup">
+              <option>Price Action</option><option>VWAP</option><option>Rompimento</option>
+              <option>Reversão</option><option>Médias Móveis</option><option>Outro</option>
+            </select></div>
+            <div><label>Observações / Emocional</label><input id="op-obs" placeholder="Como foi a operação?" /></div>
+          </div>
+          <button class="btn btn-primary" id="btn-salvar-op" style="margin-top:1rem">Salvar operação</button>
+        </div>
+      </div>
+
+      <!-- tab: histórico -->
+      <div id="tab-historico" class="hidden">
+        <div style="display:flex;flex-direction:column;gap:.75rem" id="historico-wrap"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- PROFESSOR VIEW -->
+  <div id="view-prof" class="hidden">
+    <div class="wrap" style="padding-top:1.25rem;padding-bottom:3rem">
+
+      <div class="tabs">
+        <div class="tab active" data-ptab="geral">Visão geral</div>
+        <div class="tab" data-ptab="alunos">Alunos</div>
+        <div class="tab" data-ptab="ops">Operações</div>
+      </div>
+
+      <div id="ptab-geral"></div>
+      <div id="ptab-alunos" class="hidden"></div>
+      <div id="ptab-ops" class="hidden"></div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  JAVASCRIPT                                            -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<script>
+// ── CONFIG — substitua pelos seus dados do Supabase ──────
+const SUPABASE_URL = 'https://uohcyxazdzoikobblrwa.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_3ywo2E1127DeEQnCdVqU_w_9pqN_GT0';
+
+// e-mail do professor (quem tem acesso ao dashboard)
+const PROFESSOR_EMAIL = 'paulo.belotto@gmail.com';
+// ─────────────────────────────────────────────────────────
+
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ── state ─────────────────────────────────────────────────
+let user = null, profile = null, contas = [], ops = [], allUsers = [];
+let activeConta = null, alunoTab = 'ops', profTab = 'geral', filterAluno = 'todos';
+
+// ── utils ─────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const hide = el => el.classList.add('hidden');
+const show = el => el.classList.remove('hidden');
+const fmt = v => {
+  const abs = Math.abs(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  return (v >= 0 ? '+' : '-') + '$' + abs;
+};
+const fmtDate = d => d ? d.slice(0,10) : '';
+
+function toast(msg, type='ok') {
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = `show ${type}`;
+  setTimeout(() => t.className = '', 2500);
+}
+
+function initials(name) {
+  return (name||'?').split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+}
+
+// ── init ──────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', async () => {
+  const { data: { session } } = await db.auth.getSession();
+  if (session) { user = session.user; await loadApp(); }
+  else { showAuth(); }
+  hide($('loading'));
+});
+
+db.auth.onAuthStateChange(async (_ev, session) => {
+  if (session) { user = session.user; await loadApp(); }
+  else { user = null; showAuth(); }
+});
+
+// ── auth ──────────────────────────────────────────────────
+function showAuth() {
+  hide($('screen-app'));
+  show($('screen-auth'));
+  show($('form-login'));
+  hide($('form-reg'));
+}
+
+$('go-reg').onclick = () => { hide($('form-login')); show($('form-reg')); clearAuthErr(); };
+$('go-login').onclick = () => { show($('form-login')); hide($('form-reg')); clearAuthErr(); };
+
+function clearAuthErr() { hide($('auth-err')); }
+function authErr(msg) {
+  const el = $('auth-err'); el.textContent = msg; show(el);
+}
+
+$('btn-login').onclick = async () => {
+  clearAuthErr();
+  const email = $('in-email').value.trim();
+  const senha = $('in-senha').value;
+  if (!email || !senha) { authErr('Preencha e-mail e senha.'); return; }
+  const { error } = await db.auth.signInWithPassword({ email, password: senha });
+  if (error) authErr('E-mail ou senha incorretos.');
+};
+
+$('btn-reg').onclick = async () => {
+  clearAuthErr();
+  const nome  = $('in-nome').value.trim();
+  const email = $('in-reg-email').value.trim();
+  const senha = $('in-reg-senha').value;
+  const conf  = $('in-reg-conf').value;
+  if (!nome || !email || !senha) { authErr('Preencha todos os campos.'); return; }
+  if (senha.length < 6)  { authErr('Senha deve ter pelo menos 6 caracteres.'); return; }
+  if (senha !== conf)    { authErr('As senhas não coincidem.'); return; }
+
+  const { data, error } = await db.auth.signUp({ email, password: senha, options: { data: { nome } } });
+  if (error) { authErr(error.message); return; }
+
+  // criar perfil
+  await db.from('profiles').insert({ id: data.user.id, nome, email, role: 'aluno' });
+  toast('Conta criada! Verifique seu e-mail.', 'ok');
+};
+
+$('in-senha').onkeydown = e => { if (e.key === 'Enter') $('btn-login').click(); };
+$('in-reg-conf').onkeydown = e => { if (e.key === 'Enter') $('btn-reg').click(); };
+
+$('btn-logout').onclick = async () => {
+  await db.auth.signOut();
+  contas = []; ops = []; allUsers = []; activeConta = null;
+};
+
+// ── load app ──────────────────────────────────────────────
+async function loadApp() {
+  hide($('screen-auth'));
+  show($('screen-app'));
+
+  // perfil
+  const { data: p } = await db.from('profiles').select('*').eq('id', user.id).single();
+  profile = p || { nome: user.email, role: user.email === PROFESSOR_EMAIL ? 'professor' : 'aluno' };
+
+  $('ui-username').textContent = profile.nome;
+  $('ui-avatar').textContent = initials(profile.nome);
+
+  if (profile.role === 'professor') {
+    hide($('view-aluno'));
+    show($('view-prof'));
+    await loadProfessor();
+  } else {
+    hide($('view-prof'));
+    show($('view-aluno'));
+    await loadAluno();
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+//  ALUNO
+// ══════════════════════════════════════════════════════════
+async function loadAluno() {
+  const { data: c } = await db.from('contas').select('*').eq('user_id', user.id).order('created_at');
+  contas = c || [];
+  const { data: o } = await db.from('operacoes').select('*').eq('user_id', user.id).order('data', {ascending:false});
+  ops = o || [];
+
+  if (contas.length && !activeConta) activeConta = contas[0].id;
+  renderChips();
+  renderMetricsAluno();
+  renderOpsTable();
+  fillContaSelect();
+  $('op-data').value = new Date().toISOString().slice(0,10);
+}
+
+// tabs
+document.querySelectorAll('[data-tab]').forEach(el => {
+  el.addEventListener('click', () => {
+    alunoTab = el.dataset.tab;
+    document.querySelectorAll('[data-tab]').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+    hide($('tab-ops')); hide($('tab-lancar')); hide($('tab-historico'));
+    show($(`tab-${alunoTab}`));
+    if (alunoTab === 'historico') renderHistorico();
+    if (alunoTab === 'ops') renderOpsTable();
+  });
+});
+
+// chips
+function renderChips() {
+  const wrap = $('conta-chips');
+  wrap.innerHTML = contas.map(c => `
+    <button class="chip${c.id === activeConta ? ' active' : ''}" data-cid="${c.id}">
+      <div class="chip-dot"></div>
+      ${c.nome}
+      <span style="font-size:10px;opacity:.6">${c.tipo === 'proprio' ? 'Próprio' : 'Mesa'}</span>
+    </button>
+  `).join('');
+  wrap.querySelectorAll('.chip').forEach(ch => {
+    ch.addEventListener('click', () => {
+      activeConta = ch.dataset.cid;
+      renderChips(); renderMetricsAluno(); renderOpsTable(); fillContaSelect();
+    });
+  });
+}
+
+// metrics
+function renderMetricsAluno() {
+  const contaOps = ops.filter(o => o.conta_id === activeConta);
+  const totalConta = contaOps.reduce((s,o) => s + o.resultado, 0);
+  const totalGeral = ops.reduce((s,o) => s + o.resultado, 0);
+  const ganhos = contaOps.filter(o => o.resultado > 0).length;
+  const taxa = contaOps.length ? Math.round(ganhos / contaOps.length * 100) : 0;
+
+  $('aluno-metrics').innerHTML = `
+    <div class="metric"><div class="metric-label">Resultado — conta atual</div>
+      <div class="metric-val ${totalConta >= 0 ? 'pos' : 'neg'}">${fmt(totalConta)}</div></div>
+    <div class="metric"><div class="metric-label">Total geral (todas contas)</div>
+      <div class="metric-val ${totalGeral >= 0 ? 'pos' : 'neg'}">${fmt(totalGeral)}</div></div>
+    <div class="metric"><div class="metric-label">Taxa de acerto</div>
+      <div class="metric-val neutral">${taxa}%</div></div>
+    <div class="metric"><div class="metric-label">Operações na conta</div>
+      <div class="metric-val neutral">${contaOps.length}</div></div>
+  `;
+}
+
+// ops table
+function renderOpsTable() {
+  const contaOps = ops.filter(o => o.conta_id === activeConta);
+  const wrap = $('ops-table-wrap');
+  if (!contaOps.length) {
+    wrap.innerHTML = `<div class="empty">
+      <svg width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/>
+      </svg>
+      <p>Nenhuma operação nesta conta ainda.<br><a href="#" id="go-lancar" style="color:var(--accent)">Lançar primeira operação</a></p>
+    </div>`;
+    $('go-lancar') && ($('go-lancar').onclick = () => {
+      document.querySelector('[data-tab="lancar"]').click();
+    });
+    return;
+  }
+  wrap.innerHTML = `<div class="tbl-wrap"><table>
+    <thead><tr>
+      <th>Data</th><th>Ativo</th><th>Direção</th><th>Qtd</th>
+      <th>Resultado</th><th>Setup</th><th>Obs</th><th></th>
+    </tr></thead>
+    <tbody>${contaOps.map(o => `<tr>
+      <td style="font-family:var(--mono);font-size:12px">${fmtDate(o.data)}</td>
+      <td><strong>${o.ativo}</strong></td>
+      <td><span class="badge ${o.direcao === 'compra' ? 'badge-gain' : 'badge-loss'}">${o.direcao}</span></td>
+      <td>${o.quantidade}</td>
+      <td style="font-family:var(--mono);font-weight:500;color:${o.resultado >= 0 ? 'var(--gain)' : 'var(--loss)'}">${fmt(o.resultado)}</td>
+      <td><span class="badge badge-info">${o.setup || '-'}</span></td>
+      <td style="color:var(--muted);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${o.obs || '-'}</td>
+      <td><button class="btn btn-sm btn-danger" data-del="${o.id}">×</button></td>
+    </tr>`).join('')}
+    </tbody>
+  </table></div>`;
+
+  wrap.querySelectorAll('[data-del]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Remover operação?')) return;
+      await db.from('operacoes').delete().eq('id', btn.dataset.del);
+      ops = ops.filter(o => o.id !== btn.dataset.del);
+      renderOpsTable(); renderMetricsAluno(); toast('Operação removida.', 'ok');
+    });
+  });
+}
+
+// fill select de contas no form
+function fillContaSelect() {
+  $('op-conta').innerHTML = contas.map(c =>
+    `<option value="${c.id}"${c.id === activeConta ? ' selected' : ''}>${c.nome} (${c.tipo === 'proprio' ? 'Próprio' : 'Mesa'})</option>`
+  ).join('');
+}
+
+// nova conta
+$('btn-nova-conta').onclick = () => show($('nova-conta-card'));
+$('btn-cancel-conta').onclick = () => hide($('nova-conta-card'));
+$('btn-save-conta').onclick = async () => {
+  const nome  = $('nc-nome').value.trim();
+  const tipo  = $('nc-tipo').value;
+  const saldo = parseFloat($('nc-saldo').value) || 0;
+  if (!nome) { toast('Informe o nome da conta.', 'err'); return; }
+  const { data, error } = await db.from('contas').insert({ user_id: user.id, nome, tipo, saldo_inicial: saldo }).select().single();
+  if (error) { toast('Erro ao salvar conta.', 'err'); return; }
+  contas.push(data);
+  activeConta = data.id;
+  hide($('nova-conta-card'));
+  $('nc-nome').value = ''; $('nc-saldo').value = '';
+  renderChips(); renderMetricsAluno(); renderOpsTable(); fillContaSelect();
+  toast('Conta criada!', 'ok');
+};
+
+// salvar operação
+$('btn-salvar-op').onclick = async () => {
+  const conta_id  = $('op-conta').value;
+  const data      = $('op-data').value;
+  const ativo     = $('op-ativo').value.trim().toUpperCase();
+  const direcao   = $('op-dir').value;
+  const quantidade = parseInt($('op-qtd').value) || 1;
+  const sl        = parseFloat($('op-sl').value) || 0;
+  const tp        = parseFloat($('op-tp').value) || 0;
+  const resultado = parseFloat($('op-res').value);
+  const setup     = $('op-setup').value;
+  const obs       = $('op-obs').value;
+
+  if (!ativo || isNaN(resultado)) { toast('Preencha ativo e resultado.', 'err'); return; }
+
+  const { data: row, error } = await db.from('operacoes').insert({
+    user_id: user.id, conta_id, data, ativo, direcao, quantidade, stop_loss: sl, take_profit: tp, resultado, setup, obs
+  }).select().single();
+
+  if (error) { toast('Erro ao salvar.', 'err'); return; }
+  ops.unshift(row);
+  activeConta = conta_id;
+  $('op-ativo').value = ''; $('op-res').value = ''; $('op-obs').value = '';
+  $('op-qtd').value = '1'; $('op-sl').value = ''; $('op-tp').value = '';
+  document.querySelector('[data-tab="ops"]').click();
+  toast('Operação salva!', 'ok');
+};
+
+// histórico
+function renderHistorico() {
+  const totalGeral = ops.reduce((s,o) => s + o.resultado, 0);
+  const byMonth = {};
+  ops.forEach(o => { const m = (o.data||'').slice(0,7); byMonth[m] = (byMonth[m]||0) + o.resultado; });
+
+  const contaRows = contas.map(c => {
+    const co = ops.filter(o => o.conta_id === c.id);
+    const res = co.reduce((s,o) => s + o.resultado, 0);
+    const tx = co.length ? Math.round(co.filter(o=>o.resultado>0).length/co.length*100) : 0;
+    return `<tr>
+      <td><strong>${c.nome}</strong></td>
+      <td><span class="badge ${c.tipo === 'proprio' ? 'badge-info' : 'badge-warn'}">${c.tipo === 'proprio' ? 'Próprio' : 'Mesa'}</span></td>
+      <td>${co.length}</td>
+      <td style="font-family:var(--mono);color:${res>=0?'var(--gain)':'var(--loss)'};font-weight:500">${fmt(res)}</td>
+      <td>${tx}%</td>
+    </tr>`;
+  }).join('');
+
+  $('historico-wrap').innerHTML = `
+    <div class="card">
+      <p class="stitle">Resumo por conta</p>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Conta</th><th>Tipo</th><th>Operações</th><th>Resultado</th><th>Acerto</th></tr></thead>
+        <tbody>
+          ${contaRows}
+          <tr style="background:rgba(255,255,255,.02)">
+            <td colspan="3" style="font-weight:500">Total consolidado</td>
+            <td style="font-family:var(--mono);font-weight:600;color:${totalGeral>=0?'var(--gain)':'var(--loss)'}">${fmt(totalGeral)}</td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table></div>
+    </div>
+    <div class="card">
+      <p class="stitle">Todas as operações</p>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Data</th><th>Conta</th><th>Ativo</th><th>Dir.</th><th>Resultado</th><th>Setup</th></tr></thead>
+        <tbody>${ops.map(o => {
+          const c = contas.find(x => x.id === o.conta_id);
+          return `<tr>
+            <td style="font-family:var(--mono);font-size:12px">${fmtDate(o.data)}</td>
+            <td style="color:var(--muted)">${c ? c.nome : '-'}</td>
+            <td><strong>${o.ativo}</strong></td>
+            <td><span class="badge ${o.direcao==='compra'?'badge-gain':'badge-loss'}">${o.direcao}</span></td>
+            <td style="font-family:var(--mono);color:${o.resultado>=0?'var(--gain)':'var(--loss)'}">
+              ${fmt(o.resultado)}</td>
+            <td><span class="badge badge-info">${o.setup||'-'}</span></td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table></div>
+    </div>`;
+}
+
+// ══════════════════════════════════════════════════════════
+//  PROFESSOR
+// ══════════════════════════════════════════════════════════
+async function loadProfessor() {
+  const { data: users } = await db.from('profiles').select('*').eq('role', 'aluno');
+  const { data: allContas } = await db.from('contas').select('*');
+  const { data: allOps }   = await db.from('operacoes').select('*').order('data', {ascending:false});
+
+  allUsers = (users || []).map(u => ({
+    ...u,
+    contas: (allContas || []).filter(c => c.user_id === u.id),
+    ops:    (allOps    || []).filter(o => o.user_id === u.id),
+  }));
+
+  renderProfGeral();
+  renderProfAlunos();
+  renderProfOps();
+}
+
+document.querySelectorAll('[data-ptab]').forEach(el => {
+  el.addEventListener('click', () => {
+    profTab = el.dataset.ptab;
+    document.querySelectorAll('[data-ptab]').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+    hide($('ptab-geral')); hide($('ptab-alunos')); hide($('ptab-ops'));
+    show($(`ptab-${profTab}`));
+  });
+});
+
+function renderProfGeral() {
+  const totalOps   = allUsers.reduce((s,u) => s + u.ops.length, 0);
+  const totalRes   = allUsers.reduce((s,u) => s + u.ops.reduce((x,o) => x+o.resultado,0), 0);
+  const totalGanhos = allUsers.reduce((s,u) => s + u.ops.filter(o=>o.resultado>0).length, 0);
+  const taxaGeral  = totalOps ? Math.round(totalGanhos / totalOps * 100) : 0;
+  const emAlerta   = allUsers.filter(u => u.ops.reduce((s,o)=>s+o.resultado,0) < 0);
+
+  const propRes = allUsers.reduce((s,u) =>
+    s + u.ops.filter(o => {const c=u.contas.find(x=>x.id===o.conta_id); return c&&c.tipo==='proprio';})
+      .reduce((x,o)=>x+o.resultado,0), 0);
+  const mesaRes = allUsers.reduce((s,u) =>
+    s + u.ops.filter(o => {const c=u.contas.find(x=>x.id===o.conta_id); return c&&c.tipo==='mesa';})
+      .reduce((x,o)=>x+o.resultado,0), 0);
+
+  // ativos
+  const byAtivo = {};
+  allUsers.forEach(u => u.ops.forEach(o => byAtivo[o.ativo] = (byAtivo[o.ativo]||0)+1));
+  const ativoTop = Object.entries(byAtivo).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const maxOps = ativoTop[0]?.[1] || 1;
+
+  $('ptab-geral').innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:.75rem">
+      <div class="metrics">
+        <div class="metric"><div class="metric-label">Total de alunos</div><div class="metric-val neutral">${allUsers.length}</div></div>
+        <div class="metric"><div class="metric-label">Total de operações</div><div class="metric-val neutral">${totalOps}</div></div>
+        <div class="metric"><div class="metric-label">Resultado consolidado</div><div class="metric-val ${totalRes>=0?'pos':'neg'}">${fmt(totalRes)}</div></div>
+        <div class="metric"><div class="metric-label">Taxa de acerto geral</div><div class="metric-val neutral">${taxaGeral}%</div></div>
+      </div>
+      <div class="metrics">
+        <div class="metric"><div class="metric-label">Capital próprio</div><div class="metric-val ${propRes>=0?'pos':'neg'}">${fmt(propRes)}</div></div>
+        <div class="metric"><div class="metric-label">Mesas proprietárias</div><div class="metric-val ${mesaRes>=0?'pos':'neg'}">${fmt(mesaRes)}</div></div>
+        <div class="metric"><div class="metric-label">Alunos em alerta</div><div class="metric-val ${emAlerta.length?'neg':'neutral'}">${emAlerta.length}</div></div>
+      </div>
+
+      ${emAlerta.length ? `<div class="card" style="border-color:rgba(240,82,82,.4)">
+        <p class="stitle" style="color:var(--loss)">⚠ Alunos em alerta — resultado negativo</p>
+        ${emAlerta.map(u => {
+          const res = u.ops.reduce((s,o)=>s+o.resultado,0);
+          return `<div class="student-row">
+            <div class="s-avatar">${initials(u.nome)}</div>
+            <div style="flex:1"><p class="s-name">${u.nome}</p><p class="s-email">${u.email}</p></div>
+            <span style="font-family:var(--mono);color:var(--loss);font-weight:500">${fmt(res)}</span>
+          </div>`;
+        }).join('')}
+      </div>` : ''}
+
+      <div class="card">
+        <p class="stitle">Ativos mais operados</p>
+        ${ativoTop.map(([at,n]) => `
+          <div class="bar-row">
+            <span class="bar-label">${at}</span>
+            <div class="bar-track"><div class="bar-fill" style="width:${Math.round(n/maxOps*100)}%"></div></div>
+            <span class="bar-count">${n} ops</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>`;
+}
+
+function renderProfAlunos() {
+  $('ptab-alunos').innerHTML = `<div style="display:flex;flex-direction:column;gap:.75rem">
+    ${allUsers.map(u => {
+      const res = u.ops.reduce((s,o)=>s+o.resultado,0);
+      const tx  = u.ops.length ? Math.round(u.ops.filter(o=>o.resultado>0).length/u.ops.length*100) : 0;
+      const prop = u.ops.filter(o=>{const c=u.contas.find(x=>x.id===o.conta_id);return c&&c.tipo==='proprio';}).reduce((s,o)=>s+o.resultado,0);
+      const mesa = u.ops.filter(o=>{const c=u.contas.find(x=>x.id===o.conta_id);return c&&c.tipo==='mesa';}).reduce((s,o)=>s+o.resultado,0);
+      return `<div class="card">
+        <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.85rem">
+          <div class="s-avatar" style="width:38px;height:38px;font-size:13px">${initials(u.nome)}</div>
+          <div style="flex:1">
+            <p class="s-name">${u.nome}</p>
+            <p class="s-email">${u.email} · ${u.contas.length} conta(s)</p>
+          </div>
+          <span class="badge ${res>=0?'badge-gain':'badge-loss'}" style="font-family:var(--mono)">${fmt(res)}</span>
+        </div>
+        <div class="metrics">
+          <div class="metric"><div class="metric-label">Operações</div><div class="metric-val neutral">${u.ops.length}</div></div>
+          <div class="metric"><div class="metric-label">Acerto</div><div class="metric-val neutral">${tx}%</div></div>
+          <div class="metric"><div class="metric-label">Capital próprio</div><div class="metric-val ${prop>=0?'pos':'neg'}" style="font-size:15px">${fmt(prop)}</div></div>
+          <div class="metric"><div class="metric-label">Mesas propr.</div><div class="metric-val ${mesa>=0?'pos':'neg'}" style="font-size:15px">${fmt(mesa)}</div></div>
+        </div>
+        ${u.contas.length?`<div style="margin-top:.75rem;display:flex;gap:.4rem;flex-wrap:wrap">
+          ${u.contas.map(c=>`<span class="badge ${c.tipo==='proprio'?'badge-info':'badge-warn'}">${c.nome}</span>`).join('')}
+        </div>`:''}
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+function renderProfOps() {
+  const allOpsFlat = [];
+  allUsers.forEach(u => u.ops.forEach(o => {
+    const c = u.contas.find(x=>x.id===o.conta_id);
+    allOpsFlat.push({...o, aluno: u.nome, conta_nome: c?.nome||'?', conta_tipo: c?.tipo||'?'});
+  }));
+  allOpsFlat.sort((a,b) => b.data?.localeCompare(a.data));
+
+  const alunosOpts = allUsers.map(u => `<option value="${u.nome}">${u.nome}</option>`).join('');
+  const filtered   = filterAluno === 'todos' ? allOpsFlat : allOpsFlat.filter(o=>o.aluno===filterAluno);
+
+  $('ptab-ops').innerHTML = `<div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.85rem;flex-wrap:wrap;gap:.5rem">
+      <p class="stitle" style="margin:0">Todas as operações</p>
+      <select id="filter-aluno" style="width:auto">
+        <option value="todos">Todos os alunos</option>
+        ${alunosOpts}
+      </select>
+    </div>
+    <div class="tbl-wrap"><table>
+      <thead><tr>
+        <th>Data</th><th>Aluno</th><th>Conta</th><th>Tipo</th>
+        <th>Ativo</th><th>Dir.</th><th>Qtd</th><th>Resultado</th><th>Setup</th>
+      </tr></thead>
+      <tbody>${filtered.map(o=>`<tr>
+        <td style="font-family:var(--mono);font-size:12px">${fmtDate(o.data)}</td>
+        <td style="font-weight:500">${o.aluno}</td>
+        <td style="color:var(--muted)">${o.conta_nome}</td>
+        <td><span class="badge ${o.conta_tipo==='proprio'?'badge-info':'badge-warn'}">${o.conta_tipo==='proprio'?'Próprio':'Mesa'}</span></td>
+        <td><strong>${o.ativo}</strong></td>
+        <td><span class="badge ${o.direcao==='compra'?'badge-gain':'badge-loss'}">${o.direcao}</span></td>
+        <td>${o.quantidade}</td>
+        <td style="font-family:var(--mono);color:${o.resultado>=0?'var(--gain)':'var(--loss)'}">
+          ${fmt(o.resultado)}</td>
+        <td><span class="badge badge-info">${o.setup||'-'}</span></td>
+      </tr>`).join('')}</tbody>
+    </table></div>
+  </div>`;
+
+  $('filter-aluno').value = filterAluno;
+  $('filter-aluno').onchange = function() { filterAluno = this.value; renderProfOps(); };
+}
+</script>
+</body>
+</html>

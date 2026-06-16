@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+\<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8" />
@@ -599,8 +599,7 @@ $('btn-salvar-op').onclick=async()=>{
 };
 
 // dashboard
-let chartPnl2=null,chartBar2=null,chartDonut=null,chartSetup=null;
-function destroyCharts(){[chartPnl,chartPnl2,chartBar,chartBar2,chartDonut,chartSetup].forEach(c=>{try{if(c)c.destroy()}catch(e){}});chartPnl=chartPnl2=chartBar=chartBar2=chartDonut=chartSetup=null;}
+function destroyCharts(){[chartPnl,chartBar,chartDonut,chartSetup].forEach(c=>{try{if(c)c.destroy()}catch(e){}});chartPnl=chartBar=chartDonut=chartSetup=null;}
 const CGRID={color:'#1e2330'};
 const CTICK={color:'#7a8299',font:{size:10}};
 function baseOpts(yFmt){return{responsive:true,maintainAspectRatio:true,plugins:{legend:{display:false},tooltip:{backgroundColor:'#1c2029',borderColor:'#2e3545',borderWidth:1,titleColor:'#e8eaf0',bodyColor:'#7a8299'}},scales:{x:{ticks:CTICK,grid:CGRID},y:{ticks:{...CTICK,callback:yFmt||((v)=>'$'+v)},grid:CGRID}}};}

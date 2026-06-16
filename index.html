@@ -1,4 +1,4 @@
-\<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8" />
@@ -142,6 +142,16 @@ select option{background:var(--surface2)}
 .s-avatar{width:36px;height:36px;border-radius:50%;background:var(--surface2);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:var(--muted);flex-shrink:0}
 .alert-card{border-color:rgba(240,82,82,.4)!important}
 
+/* dropdowns */
+.dropdown-menu{position:absolute;top:calc(100% + 4px);right:0;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:.35rem;z-index:200;min-width:160px;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.dd-item{padding:.5rem .85rem;border-radius:var(--radius);font-size:13px;color:var(--muted);cursor:pointer;white-space:nowrap;transition:all .12s}
+.dd-item:hover{background:var(--surface);color:var(--text)}
+.dd-item.active{color:var(--accent);background:var(--accent-bg)}
+.dd-sep{height:1px;background:var(--border);margin:.3rem 0}
+.dd-section{font-size:10px;color:var(--muted);padding:.4rem .85rem .15rem;text-transform:uppercase;letter-spacing:.6px}
+.dd-check{display:flex;align-items:center;gap:.5rem}
+.dd-check input[type=checkbox]{width:14px;height:14px;accent-color:var(--accent)}
+
 /* ── bar ── */
 .bar-row{display:flex;align-items:center;gap:.75rem;margin-bottom:.6rem}
 .bar-track{flex:1;background:var(--surface2);border-radius:3px;height:6px;overflow:hidden}
@@ -221,7 +231,34 @@ select option{background:var(--surface2)}
       <div class="page-header">
         <span class="page-title">Dashboard</span>
         <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
-          <div class="chips" id="conta-chips"></div>
+          <div id="period-filter" style="position:relative">
+            <button class="btn btn-sm" id="btn-period" style="display:flex;align-items:center;gap:.4rem">
+              <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+              <span id="period-label">Este mes</span>
+              <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <div id="period-menu" class="dropdown-menu hidden">
+              <div class="dd-item active" data-period="month">Este mes</div>
+              <div class="dd-item" data-period="week">Esta semana</div>
+              <div class="dd-item" data-period="today">Hoje</div>
+              <div class="dd-item" data-period="30d">Ultimos 30 dias</div>
+              <div class="dd-item" data-period="last-month">Mes anterior</div>
+              <div class="dd-item" data-period="quarter">Este trimestre</div>
+              <div class="dd-item" data-period="ytd">YTD (ano ate hoje)</div>
+              <div class="dd-item" data-period="all">Todo o periodo</div>
+            </div>
+          </div>
+          <div id="conta-filter" style="position:relative">
+            <button class="btn btn-sm" id="btn-conta-filter" style="display:flex;align-items:center;gap:.4rem">
+              <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 9a2 2 0 012-2h14a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path d="M8 9V5a2 2 0 012-2h4a2 2 0 012 2v4"/></svg>
+              <span id="conta-filter-label">Todas as contas</span>
+              <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <div id="conta-menu" class="dropdown-menu hidden" style="min-width:200px">
+              <div class="dd-item active" data-cid="all">Todas as contas</div>
+              <div id="conta-menu-items"></div>
+            </div>
+          </div>
           <button class="btn btn-sm" id="btn-nova-conta">+ Conta</button>
         </div>
       </div>
@@ -351,6 +388,7 @@ const db = createClient(SUPABASE_URL, SUPABASE_KEY);
 let user=null, profile=null, contas=[], ops=[], allUsers=[];
 let activeConta=null, currentPage='pg-dashboard', chartPnl=null, chartBar=null;
 let chartDonut=null, chartSetup=null;
+let activePeriod='month', activeContaFilter='all';
 
 // ── utils ──
 const $=id=>document.getElementById(id);
@@ -529,7 +567,8 @@ async function loadAluno(){
   const {data:o}=await db.from('operacoes').select('*').eq('user_id',user.id).order('data',{ascending:true});
   ops=o||[];
   if(contas.length&&!activeConta) activeConta=contas[0].id;
-  renderChips(); fillContaSelect();
+  renderChips(); fillContaSelect(); updateContaMenu();
+  try{initFilters();}catch(e){}
   $('op-data').value=new Date().toISOString().slice(0,10);
 }
 
@@ -599,14 +638,110 @@ $('btn-salvar-op').onclick=async()=>{
 };
 
 // dashboard
-function destroyCharts(){[chartPnl,chartBar,chartDonut,chartSetup].forEach(c=>{try{if(c)c.destroy()}catch(e){}});chartPnl=chartBar=chartDonut=chartSetup=null;}
+// ── filter helpers ──
+function getFilteredOps(){
+  const now=new Date();
+  const today=now.toISOString().slice(0,10);
+  const yr=now.getFullYear(),mo=now.getMonth();
+
+  let from=null,to=today;
+  if(activePeriod==='today'){from=today;}
+  else if(activePeriod==='week'){
+    const d=new Date(now);d.setDate(d.getDate()-d.getDay());
+    from=d.toISOString().slice(0,10);
+  }
+  else if(activePeriod==='month'){
+    from=`${yr}-${String(mo+1).padStart(2,'0')}-01`;
+  }
+  else if(activePeriod==='30d'){
+    const d=new Date(now);d.setDate(d.getDate()-30);
+    from=d.toISOString().slice(0,10);
+  }
+  else if(activePeriod==='last-month'){
+    const lm=mo===0?11:mo-1;const lmy=mo===0?yr-1:yr;
+    from=`${lmy}-${String(lm+1).padStart(2,'0')}-01`;
+    const lastDay=new Date(yr,mo,0).getDate();
+    to=`${lmy}-${String(lm+1).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
+  }
+  else if(activePeriod==='quarter'){
+    const q=Math.floor(mo/3);
+    from=`${yr}-${String(q*3+1).padStart(2,'0')}-01`;
+  }
+  else if(activePeriod==='ytd'){
+    from=`${yr}-01-01`;
+  }
+  // all = no filter
+
+  let filtered=ops;
+  if(activeContaFilter!=='all') filtered=filtered.filter(o=>o.conta_id===activeContaFilter);
+  if(from) filtered=filtered.filter(o=>o.data>=from&&o.data<=to);
+  return filtered;
+}
+
+function initFilters(){
+  // period dropdown
+  const btnP=$('btn-period'),menuP=$('period-menu');
+  btnP.onclick=(e)=>{e.stopPropagation();menuP.classList.toggle('hidden');$('conta-menu').classList.add('hidden');};
+  menuP.querySelectorAll('.dd-item').forEach(item=>{
+    item.onclick=()=>{
+      activePeriod=item.dataset.period;
+      $('period-label').textContent=item.textContent;
+      menuP.querySelectorAll('.dd-item').forEach(i=>i.classList.remove('active'));
+      item.classList.add('active');
+      menuP.classList.add('hidden');
+      renderDashboard();
+    };
+  });
+
+  // conta dropdown
+  const btnC=$('btn-conta-filter'),menuC=$('conta-menu');
+  btnC.onclick=(e)=>{e.stopPropagation();menuC.classList.toggle('hidden');menuP.classList.add('hidden');};
+  document.querySelector('[data-cid="all"]').onclick=()=>{
+    activeContaFilter='all';
+    $('conta-filter-label').textContent='Todas as contas';
+    menuC.querySelectorAll('.dd-item').forEach(i=>i.classList.remove('active'));
+    document.querySelector('[data-cid="all"]').classList.add('active');
+    menuC.classList.add('hidden');
+    renderDashboard();
+  };
+
+  // close on outside click
+  document.addEventListener('click',()=>{menuP.classList.add('hidden');menuC.classList.add('hidden');});
+}
+
+function updateContaMenu(){
+  const items=$('conta-menu-items');
+  if(!items)return;
+  items.innerHTML=`<div class="dd-sep"></div><div class="dd-section">Minhas contas</div>`+
+    contas.map(c=>`<div class="dd-item dd-check" data-cid="${c.id}">
+      <span style="width:8px;height:8px;border-radius:50%;background:${c.tipo==='proprio'?'var(--accent)':'var(--warn)'};flex-shrink:0"></span>
+      ${c.nome} <span style="font-size:10px;color:var(--muted);margin-left:auto">${c.tipo==='proprio'?'Proprio':'Mesa'}</span>
+    </div>`).join('');
+  items.querySelectorAll('.dd-item').forEach(item=>{
+    item.onclick=()=>{
+      activeContaFilter=item.dataset.cid;
+      const c=contas.find(x=>x.id===item.dataset.cid);
+      $('conta-filter-label').textContent=c?c.nome:'?';
+      $('conta-menu').querySelectorAll('.dd-item').forEach(i=>i.classList.remove('active'));
+      item.classList.add('active');
+      $('conta-menu').classList.add('hidden');
+      renderDashboard();
+    };
+  });
+}
+
+function destroyCharts(){
+  [chartPnl,chartBar,chartDonut,chartSetup].forEach(c=>{try{if(c)c.destroy()}catch(e){}});
+  chartPnl=chartBar=chartDonut=chartSetup=null;
+}
+
 const CGRID={color:'#1e2330'};
 const CTICK={color:'#7a8299',font:{size:10}};
-function baseOpts(yFmt){return{responsive:true,maintainAspectRatio:true,plugins:{legend:{display:false},tooltip:{backgroundColor:'#1c2029',borderColor:'#2e3545',borderWidth:1,titleColor:'#e8eaf0',bodyColor:'#7a8299'}},scales:{x:{ticks:CTICK,grid:CGRID},y:{ticks:{...CTICK,callback:yFmt||((v)=>'$'+v)},grid:CGRID}}};}
+function mkOpts(extra={}){return Object.assign({responsive:true,maintainAspectRatio:true,plugins:{legend:{display:false},tooltip:{backgroundColor:'#1c2029',borderColor:'#2e3545',borderWidth:1,titleColor:'#e8eaf0',bodyColor:'#c0c4d0'}},scales:{x:{ticks:CTICK,grid:CGRID},y:{ticks:{...CTICK,callback:v=>'$'+v},grid:CGRID}}},extra);}
 
 function renderDashboard(){
   destroyCharts();
-  const co=ops.filter(o=>o.conta_id===activeConta);
+  const co=getFilteredOps();
   const sorted=co.slice().sort((a,b)=>a.data.localeCompare(b.data));
   const totalConta=co.reduce((s,o)=>s+o.resultado,0);
   const totalGeral=ops.reduce((s,o)=>s+o.resultado,0);
@@ -620,95 +755,175 @@ function renderDashboard(){
   const avgL=perdas.length?+(grossL/perdas.length).toFixed(2):0;
   const maxG=ganhos.length?Math.max(...ganhos.map(o=>o.resultado)):0;
   const maxL=perdas.length?Math.max(...perdas.map(o=>Math.abs(o.resultado))):0;
+  const totalWinAmt=grossG;
+  const totalLossAmt=grossL;
+  const winLossBar=totalWinAmt+totalLossAmt>0?Math.round(totalWinAmt/(totalWinAmt+totalLossAmt)*100):50;
 
-  $('dash-metrics').innerHTML=`
-    <div class="metric"><div class="metric-label">Net P&L</div><div class="metric-val ${totalConta>=0?'pos':'neg'}">${fmt(totalConta)}</div><div class="metric-sub">conta atual</div></div>
-    <div class="metric"><div class="metric-label">Total consolidado</div><div class="metric-val ${totalGeral>=0?'pos':'neg'}">${fmt(totalGeral)}</div><div class="metric-sub">todas as contas</div></div>
-    <div class="metric"><div class="metric-label">Fator de lucro</div><div class="metric-val neu">${fator}</div><div class="metric-sub">ganhos / perdas</div></div>
-    <div class="metric"><div class="metric-label">Ganho medio</div><div class="metric-val pos">+$${avgG.toFixed(2)}</div><div class="metric-sub">por trade vencedor</div></div>
-    <div class="metric"><div class="metric-label">Perda media</div><div class="metric-val neg">-$${avgL.toFixed(2)}</div><div class="metric-sub">por trade perdedor</div></div>
-    <div class="metric"><div class="metric-label">Maior ganho</div><div class="metric-val pos">+$${maxG.toFixed(2)}</div><div class="metric-sub">melhor operacao</div></div>
-    <div class="metric"><div class="metric-label">Maior perda</div><div class="metric-val neg">-$${maxL.toFixed(2)}</div><div class="metric-sub">pior operacao</div></div>
-  `;
+  // gauge SVG helper (semicircle)
+  function gauge(pct,color){
+    const r=36,cx=50,cy=50;
+    const clamp=Math.max(0,Math.min(100,pct));
+    const angle=(clamp/100)*180;
+    const rad=(angle-180)*Math.PI/180;
+    const x=cx+r*Math.cos(rad),y=cy+r*Math.sin(rad);
+    const lg=angle>180?1:0;
+    return `<svg viewBox="0 0 100 55" width="80" height="44">
+      <path d="M${cx-r},${cy} A${r},${r} 0 0,1 ${cx+r},${cy}" fill="none" stroke="#1e2330" stroke-width="8" stroke-linecap="round"/>
+      ${clamp>0?`<path d="M${cx-r},${cy} A${r},${r} 0 ${lg},1 ${x},${y}" fill="none" stroke="${color}" stroke-width="8" stroke-linecap="round"/>`:''}
+    </svg>`;
+  }
 
-  // ── P&L acumulado (linha + area gradiente)
+  // top metric bar (Tradezella style)
+  const metricsHTML=`
+  <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:.5rem;margin-bottom:1rem">
+    <div class="metric" style="padding:.75rem">
+      <div class="metric-label">Net P&L</div>
+      <div class="metric-val ${totalConta>=0?'pos':'neg'}" style="font-size:18px">${fmt(totalConta)}</div>
+      <div class="metric-sub">conta atual</div>
+    </div>
+    <div class="metric" style="padding:.75rem;display:flex;flex-direction:column;align-items:center">
+      <div class="metric-label" style="align-self:flex-start">Trade win %</div>
+      ${gauge(taxa,'#22d08a')}
+      <div class="metric-val neu" style="font-size:16px;margin-top:-4px">${co.length?taxa+'%':'--'}</div>
+    </div>
+    <div class="metric" style="padding:.75rem;display:flex;flex-direction:column;align-items:center">
+      <div class="metric-label" style="align-self:flex-start">Profit factor</div>
+      ${gauge(fator==='inf'?100:fator==='--'?0:Math.min(fator/5*100,100),'#4f7fff')}
+      <div class="metric-val neu" style="font-size:16px;margin-top:-4px">${fator}</div>
+    </div>
+    <div class="metric" style="padding:.75rem;display:flex;flex-direction:column;align-items:center">
+      <div class="metric-label" style="align-self:flex-start">Day win %</div>
+      ${(()=>{const days={};co.forEach(o=>{const d=o.data?.slice(0,10);if(!days[d])days[d]=0;days[d]+=o.resultado;});const ds=Object.values(days);const dw=ds.filter(v=>v>0).length;const dp=Math.round(ds.length?dw/ds.length*100:0);return gauge(dp,'#f0b429')+`<div class="metric-val neu" style="font-size:16px;margin-top:-4px">${ds.length?dp+'%':'--'}</div>`})()}
+    </div>
+    <div class="metric" style="padding:.75rem">
+      <div class="metric-label">Avg win / loss</div>
+      <div style="margin:.5rem 0 .25rem">
+        <div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:3px">
+          <span style="color:var(--gain)">+$${avgG.toFixed(0)}</span>
+          <span style="color:var(--loss)">-$${avgL.toFixed(0)}</span>
+        </div>
+        <div style="height:6px;border-radius:3px;overflow:hidden;background:var(--loss);display:flex">
+          <div style="width:${winLossBar}%;background:var(--gain)"></div>
+        </div>
+      </div>
+      <div class="metric-sub">ganho medio vs perda media</div>
+    </div>
+    <div class="metric" style="padding:.75rem">
+      <div class="metric-label">Total consolidado</div>
+      <div class="metric-val ${totalGeral>=0?'pos':'neg'}" style="font-size:18px">${fmt(totalGeral)}</div>
+      <div class="metric-sub">todas as contas</div>
+    </div>
+  </div>`;
+
+  $('dash-metrics').outerHTML=`<div id="dash-metrics">${metricsHTML}</div>`;
+
+  // row 1: P&L acumulado + donut
+  if($('pnl-badge')) $('pnl-badge').innerHTML=`<span style="color:${totalConta>=0?'var(--gain)':'var(--loss)'}">${fmt(totalConta)}</span>`;
+  const pnlColor=totalConta>=0?'#22d08a':'#f05252';
   let acc=0;
   const pnlData=sorted.map(o=>{acc+=o.resultado;return+acc.toFixed(2)});
-  const pnlLabels=sorted.map((o,i)=>i%Math.max(1,Math.floor(sorted.length/8))===0?fmtD(o.data):'');
-  const positivo=totalConta>=0;
-  const pnlColor=positivo?'#22d08a':'#f05252';
   const ctx1=document.getElementById('chart-pnl');
   if(ctx1&&co.length){
     const grad=ctx1.getContext('2d').createLinearGradient(0,0,0,200);
-    grad.addColorStop(0,positivo?'rgba(34,208,138,.25)':'rgba(240,82,82,.25)');
+    grad.addColorStop(0,totalConta>=0?'rgba(34,208,138,.3)':'rgba(240,82,82,.3)');
     grad.addColorStop(1,'rgba(0,0,0,0)');
     chartPnl=new Chart(ctx1,{type:'line',data:{labels:sorted.map((_,i)=>i),datasets:[{data:pnlData,borderColor:pnlColor,backgroundColor:grad,fill:true,tension:.35,pointRadius:sorted.length>30?0:3,pointBackgroundColor:pnlColor,pointHoverRadius:5,borderWidth:2}]},
-      options:{...baseOpts(),plugins:{legend:{display:false},tooltip:{callbacks:{title:([i])=>fmtD(sorted[i.dataIndex]?.data),label:i=>'P&L: '+fmt(i.raw)}}},scales:{x:{display:false,grid:{display:false}},y:{ticks:CTICK,grid:CGRID}}}});
-    if($('pnl-badge')) $('pnl-badge').innerHTML=`<span style="color:${pnlColor}">${fmt(totalConta)}</span>`;
+      options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{title:([i])=>fmtD(sorted[i.dataIndex]?.data),label:i=>'P&L: '+fmt(i.raw)},backgroundColor:'#1c2029',borderColor:'#2e3545',borderWidth:1,titleColor:'#e8eaf0',bodyColor:'#c0c4d0'}},scales:{x:{display:false},y:{ticks:CTICK,grid:CGRID}}}});
   }
-
-  // ── Donut taxa de acerto
   const ctx3=document.getElementById('chart-donut');
   if(ctx3){
-    chartDonut=new Chart(ctx3,{type:'doughnut',data:{datasets:[{data:[ganhos.length,perdas.length],backgroundColor:['#22d08a','#f05252'],borderWidth:0,hoverOffset:4}]},
-      options:{responsive:false,cutout:'72%',plugins:{legend:{display:false},tooltip:{callbacks:{label:i=>i.label+': '+i.raw+' ops'}}}}});
+    chartDonut=new Chart(ctx3,{type:'doughnut',data:{datasets:[{data:[ganhos.length||0,perdas.length||0.01],backgroundColor:['#22d08a','#f05252'],borderWidth:0,hoverOffset:4}]},
+      options:{responsive:false,cutout:'72%',plugins:{legend:{display:false}}}});
     if($('donut-pct')) $('donut-pct').textContent=taxa+'%';
     if($('donut-g')) $('donut-g').textContent=ganhos.length+' ops';
     if($('donut-l')) $('donut-l').textContent=perdas.length+' ops';
   }
 
-  // ── Barras P&L por operacao
+  // row 2: barras P&L + setup horizontal
   const ctx2=document.getElementById('chart-bar');
   if(ctx2&&co.length){
     const last=sorted.slice(-25);
-    chartBar=new Chart(ctx2,{type:'bar',data:{labels:last.map(o=>o.ativo),datasets:[{data:last.map(o=>o.resultado),backgroundColor:last.map(o=>o.resultado>=0?'rgba(34,208,138,.75)':'rgba(240,82,82,.75)'),borderRadius:3,borderSkipped:false}]},
-      options:{...baseOpts(),scales:{x:{ticks:{...CTICK,maxRotation:0},grid:{display:false}},y:{ticks:CTICK,grid:CGRID}}}});
+    chartBar=new Chart(ctx2,{type:'bar',data:{labels:last.map(o=>o.ativo),datasets:[{data:last.map(o=>o.resultado),backgroundColor:last.map(o=>o.resultado>=0?'rgba(34,208,138,.8)':'rgba(240,82,82,.8)'),borderRadius:3,borderSkipped:false}]},
+      options:mkOpts()});
   }
-
-  // ── Resultado por setup (barras horizontais)
   const ctx4=document.getElementById('chart-setup');
   if(ctx4&&co.length){
     const bySetup={};
     co.forEach(o=>{if(!bySetup[o.setup])bySetup[o.setup]={res:0,n:0};bySetup[o.setup].res+=o.resultado;bySetup[o.setup].n++;});
-    const setupEntries=Object.entries(bySetup).sort((a,b)=>b[1].res-a[1].res);
-    chartSetup=new Chart(ctx4,{type:'bar',data:{labels:setupEntries.map(([k])=>k),datasets:[{data:setupEntries.map(([,v])=>+v.res.toFixed(2)),backgroundColor:setupEntries.map(([,v])=>v.res>=0?'rgba(79,127,255,.75)':'rgba(240,82,82,.75)'),borderRadius:3}]},
-      options:{...baseOpts(),indexAxis:'y',scales:{x:{ticks:CTICK,grid:CGRID},y:{ticks:{...CTICK,font:{size:11}},grid:{display:false}}}}});
+    const entries=Object.entries(bySetup).sort((a,b)=>b[1].res-a[1].res);
+    chartSetup=new Chart(ctx4,{type:'bar',data:{labels:entries.map(([k])=>k),datasets:[{data:entries.map(([,v])=>+v.res.toFixed(2)),backgroundColor:entries.map(([,v])=>v.res>=0?'rgba(79,127,255,.8)':'rgba(240,82,82,.8)'),borderRadius:3}]},
+      options:{...mkOpts(),indexAxis:'y',scales:{x:{ticks:CTICK,grid:CGRID},y:{ticks:{...CTICK,font:{size:11}},grid:{display:false}}}}});
   }
 
-  // ── Calendario de P&L
+  // calendario
   const now=new Date();
   const yr=now.getFullYear(),mo=now.getMonth();
   if($('cal-month')) $('cal-month').textContent=now.toLocaleString('pt-BR',{month:'long',year:'numeric'});
   const byDay={};
   co.forEach(o=>{const d=o.data?.slice(0,10);if(d)byDay[d]=(byDay[d]||0)+o.resultado;});
+  // resultado semanal
+  const weeks={};
+  co.forEach(o=>{
+    if(!o.data)return;
+    const dt=new Date(o.data+'T12:00:00');
+    const wk=Math.ceil((dt.getDate()+new Date(dt.getFullYear(),dt.getMonth(),1).getDay())/7);
+    const key=`${dt.getFullYear()}-${dt.getMonth()}-${wk}`;
+    weeks[key]=(weeks[key]||0)+o.resultado;
+  });
   const firstDay=new Date(yr,mo,1).getDay();
   const daysInMonth=new Date(yr,mo+1,0).getDate();
   const cal=$('dash-calendar');
   if(cal){
     const dayNames=['Dom','Seg','Ter','Qua','Qui','Sex','Sab'];
-    cal.innerHTML=dayNames.map(d=>`<div style="font-size:10px;color:var(--muted);text-align:center;padding:2px 0">${d}</div>`).join('');
+    cal.innerHTML=dayNames.map(d=>`<div style="font-size:10px;color:var(--muted);text-align:center;padding:4px 0;font-weight:500">${d}</div>`).join('');
+    // semana header
+    cal.innerHTML+=`<div style="font-size:9px;color:var(--muted);text-align:center;padding:4px 0;grid-column:8">Semana</div>`;
+    cal.style.gridTemplateColumns='repeat(7,1fr) 60px';
+
     for(let i=0;i<firstDay;i++) cal.innerHTML+=`<div></div>`;
     for(let d=1;d<=daysInMonth;d++){
       const key=`${yr}-${String(mo+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
       const val=byDay[key];
-      const bg=val===undefined?'var(--surface2)':val>=0?`rgba(34,208,138,${Math.min(.9,Math.abs(val)/200+.15)})`:`rgba(240,82,82,${Math.min(.9,Math.abs(val)/200+.15)})`;
-      const txt=val!==undefined?`title="${val>=0?'+':''}$${val.toFixed(0)}"` :'';
-      cal.innerHTML+=`<div ${txt} style="background:${bg};border-radius:4px;height:32px;display:flex;align-items:center;justify-content:center;font-size:10px;font-family:var(--mono);color:${val===undefined?'var(--muted)':'var(--text)'}${d===now.getDate()&&mo===now.getMonth()?';outline:1px solid var(--accent)':''}">${d}</div>`;
+      const isToday=d===now.getDate()&&mo===now.getMonth()&&yr===now.getFullYear();
+      const bg=val===undefined?'var(--surface2)':val>=0?`rgba(34,208,138,${Math.min(.9,Math.abs(val)/300+.12)})`:`rgba(240,82,82,${Math.min(.9,Math.abs(val)/300+.12)})`;
+      const txt=val!==undefined?`<div style="font-size:9px;font-family:var(--mono);margin-top:1px;color:${val>=0?'var(--gain)':'var(--loss)'}">${val>=0?'+':''}${val.toFixed(0)}</div>`:'';
+      cal.innerHTML+=`<div title="${key}" style="background:${bg};border-radius:5px;height:42px;display:flex;flex-direction:column;align-items:center;justify-content:center;${isToday?'outline:1.5px solid var(--accent);':''}">
+        <div style="font-size:11px;color:var(--text)">${d}</div>${txt}
+      </div>`;
+      // inserir total semanal no sabado ou ultimo dia do mes
+      const dayOfWeek=new Date(yr,mo,d).getDay();
+      if(dayOfWeek===6||d===daysInMonth){
+        const wk=Math.ceil((d+firstDay)/7);
+        const wkey=`${yr}-${mo}-${wk}`;
+        const wval=weeks[wkey]||0;
+        const hasTrades=Object.keys(byDay).some(k=>{const dt=new Date(k+'T12:00:00');const w=Math.ceil((dt.getDate()+new Date(dt.getFullYear(),dt.getMonth(),1).getDay())/7);return `${dt.getFullYear()}-${dt.getMonth()}-${w}`===wkey});
+        cal.innerHTML+=`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:42px;border-left:1px solid var(--border);padding-left:4px">
+          <div style="font-size:9px;color:var(--muted)">Sem ${wk}</div>
+          <div style="font-size:11px;font-family:var(--mono);font-weight:500;color:${hasTrades?(wval>=0?'var(--gain)':'var(--loss)'):'var(--muted)'}">${hasTrades?(wval>=0?'+':'')+'$'+Math.abs(wval).toFixed(0):'$0'}</div>
+        </div>`;
+        // preenche dias restantes da semana se ultimo dia do mes nao for sabado
+        if(d===daysInMonth&&dayOfWeek!==6){
+          const remaining=6-dayOfWeek;
+          for(let r=0;r<remaining;r++) cal.innerHTML+=`<div></div>`;
+        }
+      }
     }
   }
 
-  // ── Tabela operacoes recentes
+  // tabela recente
   const recent=co.slice().sort((a,b)=>b.data.localeCompare(a.data)).slice(0,10);
   $('dash-ops-table').innerHTML=recent.length?`<div class="tbl-wrap"><table>
-    <thead><tr><th>Data</th><th>Ativo</th><th>Direcao</th><th>Qtd</th><th>Resultado</th><th>Setup</th><th>Obs</th><th></th></tr></thead>
+    <thead><tr><th>Data</th><th>Ativo</th><th>Direcao</th><th>Qtd</th><th>SL</th><th>TP</th><th>Resultado</th><th>Setup</th><th>Obs</th><th></th></tr></thead>
     <tbody>${recent.map(o=>`<tr>
       <td style="font-family:var(--mono);font-size:12px">${fmtD(o.data)}</td>
       <td><strong>${o.ativo}</strong></td>
       <td><span class="badge ${o.direcao==='compra'?'badge-gain':'badge-loss'}">${o.direcao}</span></td>
       <td>${o.quantidade}</td>
+      <td style="font-family:var(--mono);color:var(--loss);font-size:12px">${o.stop_loss?'-$'+o.stop_loss:'-'}</td>
+      <td style="font-family:var(--mono);color:var(--gain);font-size:12px">${o.take_profit?'+$'+o.take_profit:'-'}</td>
       <td style="font-family:var(--mono);font-weight:500;color:${o.resultado>=0?'var(--gain)':'var(--loss)'}">${fmt(o.resultado)}</td>
       <td><span class="badge badge-info">${o.setup||'-'}</span></td>
-      <td style="color:var(--muted);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${o.obs||'-'}</td>
+      <td style="color:var(--muted);max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${o.obs||'-'}</td>
       <td><button class="btn btn-sm btn-danger" data-del="${o.id}">x</button></td>
     </tr>`).join('')}</tbody>
   </table></div>`:`<div class="empty">Nenhuma operacao nesta conta.<br><button class="btn btn-primary btn-sm" onclick="navTo('pg-lancar')" style="margin-top:.75rem">Lancar primeira operacao</button></div>`;
@@ -722,7 +937,6 @@ function renderDashboard(){
     });
   });
 }
-
 function renderHistorico(){
   const totalGeral=ops.reduce((s,o)=>s+o.resultado,0);
   $('historico-body').innerHTML=`

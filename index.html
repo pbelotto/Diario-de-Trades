@@ -338,6 +338,60 @@ select option{background:var(--sf2)}
       <div class="pb" id="po-body"></div>
     </div>
 
+    <!-- importar -->
+    <div class="page" id="pg-import">
+      <div class="ph"><span class="ptitle">Importar operações</span></div>
+      <div class="pb">
+        <div class="card" style="max-width:680px">
+          <p class="ctitle">Importar operações</p>
+
+          <!-- format tabs -->
+          <div style="display:flex;gap:.35rem;margin-bottom:1.25rem">
+            <button class="btn btn-sm btn-p" id="fmt-mt" onclick="setFmt('mt')">MetaTrader 4/5 (.htm)</button>
+            <button class="btn btn-sm" id="fmt-tv" onclick="setFmt('tv')">Tradovate (.csv)</button>
+          </div>
+
+          <div id="fmt-mt-info">
+            <p style="font-size:13px;color:var(--mt);margin-bottom:1rem;line-height:1.7">
+              No MetaTrader, vá em <strong style="color:var(--tx)">Histórico da conta</strong> → clique com botão direito → 
+              <strong style="color:var(--tx)">Salvar como relatório detalhado</strong> → salve o arquivo <code style="background:var(--sf2);padding:1px 6px;border-radius:4px;font-size:12px">.htm</code> e faça upload abaixo.
+            </p>
+          </div>
+          <div id="fmt-tv-info" class="hidden">
+            <p style="font-size:13px;color:var(--mt);margin-bottom:1rem;line-height:1.7">
+              No Tradovate, vá em <strong style="color:var(--tx)">Account</strong> → <strong style="color:var(--tx)">Performance</strong> → botão <strong style="color:var(--tx)">Export CSV</strong> → faça upload abaixo.
+              As operações são agrupadas automaticamente por posição.
+            </p>
+          </div>
+
+          <label>Conta de destino</label>
+          <select id="imp-conta"></select>
+          <label style="margin-top:1rem">Arquivo <span id="imp-file-label">(.htm)</span></label>
+          <div id="imp-dropzone" style="border:2px dashed var(--bd2);border-radius:var(--rl);padding:2rem;text-align:center;cursor:pointer;transition:border-color .15s;margin-top:.25rem">
+            <div style="font-size:28px;margin-bottom:.5rem">📂</div>
+            <div style="font-size:13px;color:var(--mt)">Clique para selecionar ou arraste o arquivo aqui</div>
+            <div id="imp-fname" style="font-size:12px;color:var(--ac);margin-top:.5rem"></div>
+            <input type="file" id="imp-file" accept=".htm,.html,.csv" style="display:none"/>
+          </div>
+          <div id="imp-preview" class="hidden" style="margin-top:1rem">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
+              <p style="font-size:13px;font-weight:500">Preview — <span id="imp-count"></span> operações encontradas</p>
+              <button class="btn btn-sm" id="imp-clear">Limpar</button>
+            </div>
+            <div class="tw" style="max-height:300px;overflow-y:auto">
+              <table><thead><tr><th>Data</th><th>Ativo</th><th>Tipo</th><th>Volume</th><th>S/L</th><th>T/P</th><th>Lucro</th></tr></thead>
+              <tbody id="imp-tbody"></tbody></table>
+            </div>
+            <div id="imp-warn" class="hidden" style="background:var(--wn2);border:1px solid var(--wn);border-radius:var(--r);padding:.6rem .85rem;font-size:12px;color:var(--wn);margin-top:.75rem"></div>
+          </div>
+          <div style="display:flex;gap:.5rem;margin-top:1rem">
+            <button class="btn btn-p" id="imp-salvar" style="display:none">Importar operações</button>
+          </div>
+          <div id="imp-result" class="hidden" style="margin-top:1rem;background:var(--gn2);border:1px solid var(--gn);border-radius:var(--r);padding:.75rem 1rem;font-size:13px;color:var(--gn)"></div>
+        </div>
+      </div>
+    </div>
+
   </main>
 </div>
 
@@ -399,6 +453,7 @@ function buildNav(role){
   const aItems=[
     {id:'pg-dash',label:'Dashboard',ic:'<path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>'},
     {id:'pg-lancar',label:'Lançar operação',ic:'<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>'},
+    {id:'pg-import',label:'Importar MT4/MT5',ic:'<path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>'},
     {id:'pg-hist',label:'Histórico',ic:'<path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>'},
   ];
   const pItems=[
@@ -870,6 +925,241 @@ function renderPO(){
     </tr>`).join('')}</tbody>
   </table></div></div>`;
 }
+
+// ── IMPORT PAGE ──
+let impFmt='mt';
+function setFmt(f){
+  impFmt=f;
+  const bmt=$('fmt-mt'),btv=$('fmt-tv');
+  if(bmt&&btv){
+    if(f==='mt'){bmt.classList.add('btn-p');btv.classList.remove('btn-p');}
+    else{btv.classList.add('btn-p');bmt.classList.remove('btn-p');}
+  }
+  const imt=$('fmt-mt-info'),itv=$('fmt-tv-info');
+  if(imt&&itv){if(f==='mt'){show(imt);hide(itv);}else{hide(imt);show(itv);}}
+  const lbl=$('imp-file-label');
+  if(lbl)lbl.textContent=f==='mt'?'(.htm)':'(.csv)';
+  parsedOps=[];hide($('imp-preview'));
+  const btn=$('imp-salvar');if(btn)btn.style.display='none';
+  $('imp-fname').textContent='';
+}
+
+function initImport(){
+  const sel=$('imp-conta');
+  if(!sel)return;
+  sel.innerHTML=contas.map(c=>`<option value="${c.id}">${c.nome} (${c.tipo==='proprio'?'Próprio':'Mesa'})</option>`).join('');
+  setFmt(impFmt);
+
+  const dz=$('imp-dropzone'),fi=$('imp-file');
+  if(!dz||!fi)return;
+
+  dz.onclick=()=>fi.click();
+  dz.ondragover=e=>{e.preventDefault();dz.style.borderColor='var(--ac)';};
+  dz.ondragleave=()=>{dz.style.borderColor='var(--bd2)';};
+  dz.ondrop=e=>{e.preventDefault();dz.style.borderColor='var(--bd2)';if(e.dataTransfer.files[0])processFile(e.dataTransfer.files[0]);};
+  fi.onchange=()=>{if(fi.files[0])processFile(fi.files[0]);};
+}
+
+let parsedOps=[];
+
+function processFile(file){
+  $('imp-fname').textContent=file.name;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      let result;
+      if(impFmt==='tv'){
+        result=parseTradovate(e.target.result);
+      } else {
+        result=parseMT(e.target.result);
+      }
+      parsedOps=result;
+      showPreview(result);
+    }catch(err){
+      toast('Erro ao ler arquivo: '+err.message,'err');
+    }
+  };
+  if(impFmt==='tv') reader.readAsText(file,'UTF-8');
+  else reader.readAsText(file,'UTF-16LE');
+}
+
+function parseMT(html){
+  html=html.split(String.fromCharCode(0)).join('');
+  const parser=new DOMParser();
+  const doc=parser.parseFromString(html,'text/html');
+  const rows=Array.from(doc.querySelectorAll('tr'));
+  const ops=[];
+  for(const row of rows){
+    const cells=Array.from(row.querySelectorAll('td')).map(td=>td.textContent.trim());
+    if(cells.length<13)continue;
+    const c0=cells[0]||'';
+    if(c0.length<10)continue;
+    if(c0[4]!=='.'||c0[7]!=='.')continue;
+    const tipo=(cells[3]||'').toLowerCase();
+    if(!tipo||tipo==='balance'||tipo==='deposit'||tipo==='withdrawal'||tipo==='credit')continue;
+    if(!cells[9]||cells[9]==='')continue;
+    if(!cells[2]||cells[2]==='')continue;
+    const horarioAberto=cells[0];
+    const ativo=cells[2].trim();
+    const volume=parseFloat(cells[4])||0;
+    const sl=parseFloat(cells[6])||0;
+    const tp=parseFloat(cells[7])||0;
+    const horarioFechado=cells[8]||cells[0];
+    const lucroStr=(cells[12]||cells[cells.length-1]||'0').trim().replace(',','.');
+    const lucro=parseFloat(lucroStr)||0;
+    const rawDate=horarioFechado.slice(0,10);
+    const dateStr=rawDate.split('.').join('-');
+    if(dateStr.length!==10)continue;
+    ops.push({
+      data:dateStr,
+      ativo:ativo.toUpperCase(),
+      direcao:tipo==='buy'?'compra':'venda',
+      quantidade:volume,
+      stop_loss:sl,take_profit:tp,resultado:lucro,
+      setup:'Importado MT',
+      obs:'Aberto: '+horarioAberto
+    });
+  }
+  if(!ops.length)throw new Error('Nenhuma operacao encontrada. Verifique se o arquivo e um relatorio detalhado do MetaTrader.');
+  return ops;
+}
+
+function parseTradovate(csv){
+  const lines=csv.trim().split('\n');
+  if(lines.length<2)throw new Error('Arquivo CSV vazio ou invalido.');
+  const header=lines[0].split(',');
+  const idx={
+    symbol:header.indexOf('symbol'),
+    qty:header.indexOf('qty'),
+    buyPrice:header.indexOf('buyPrice'),
+    pnl:header.indexOf('pnl'),
+    buyFillId:header.indexOf('buyFillId'),
+    soldTimestamp:header.indexOf('soldTimestamp'),
+    boughtTimestamp:header.indexOf('boughtTimestamp'),
+  };
+  if(idx.symbol<0||idx.pnl<0)throw new Error('Formato Tradovate nao reconhecido.');
+
+  const groups={};
+  for(let i=1;i<lines.length;i++){
+    const cols=lines[i].replace('\r','').split(',');
+    if(cols.length<8)continue;
+    const buyId=(cols[idx.buyFillId]||'').trim();
+    if(!buyId)continue;
+    if(!groups[buyId])groups[buyId]={
+      symbol:(cols[idx.symbol]||'').trim(),
+      qty:0,pnl:0,
+      buyPrice:parseFloat(cols[idx.buyPrice])||0,
+      boughtTimestamp:(cols[idx.boughtTimestamp]||'').trim(),
+      soldTimestamp:(cols[idx.soldTimestamp]||'').trim(),
+    };
+    const raw=(cols[idx.pnl]||'0');
+    const isNeg=raw.indexOf('(')>=0;
+    const pnlNum=parseFloat(raw.replace('$','').replace('(','').replace(')','').trim())||0;
+    const pnlVal=isNeg?-pnlNum:pnlNum;
+    groups[buyId].pnl+=pnlVal;
+    groups[buyId].qty+=parseInt(cols[idx.qty])||1;
+    if((cols[idx.soldTimestamp]||'')>(groups[buyId].soldTimestamp||''))
+      groups[buyId].soldTimestamp=(cols[idx.soldTimestamp]||'').trim();
+  }
+
+  const ops=Object.values(groups).map(g=>{
+    const ts=g.soldTimestamp||g.boughtTimestamp||'';
+    let dateStr='';
+    const parts=ts.split(' ')[0].split('/');
+    if(parts.length===3)dateStr=parts[2]+'-'+parts[0]+'-'+parts[1];
+    const sym=(g.symbol||'').replace(/M[0-9]$/,'').replace(/[A-Z]6$/,'');
+    return{
+      data:dateStr,
+      ativo:sym||g.symbol,
+      direcao:'compra',
+      quantidade:g.qty,
+      stop_loss:0,take_profit:0,
+      resultado:parseFloat(g.pnl.toFixed(2)),
+      setup:'Importado Tradovate',
+      obs:'Entrada: '+(g.boughtTimestamp||'')
+    };
+  }).filter(o=>o.data);
+
+  if(!ops.length)throw new Error('Nenhuma operacao encontrada no arquivo Tradovate.');
+  return ops;
+}
+
+function showPreview(ops){
+  const prev=$('imp-preview');
+  if(!prev)return;
+  show(prev);
+  $('imp-count').textContent=ops.length;
+
+  const dups=ops.filter(o=>checkDup(o));
+  if(dups.length){
+    const warn=$('imp-warn');
+    warn.textContent=`⚠ ${dups.length} operação(ões) já existem no sistema (mesma data, ativo e resultado) e serão ignoradas na importação.`;
+    show(warn);
+  }
+
+  $('imp-tbody').innerHTML=ops.map(o=>`<tr>
+    <td style="font-family:var(--mono);font-size:12px">${o.data}</td>
+    <td><strong>${o.ativo}</strong></td>
+    <td><span class="badge ${o.direcao==='compra'?'bg':'bl'}">${o.direcao}</span></td>
+    <td>${o.quantidade}</td>
+    <td style="font-size:12px;color:var(--ls)">${o.stop_loss?o.stop_loss:'-'}</td>
+    <td style="font-size:12px;color:var(--gn)">${o.take_profit?o.take_profit:'-'}</td>
+    <td style="font-family:var(--mono);font-weight:500;color:${o.resultado>=0?'var(--gn)':'var(--ls)'}">${fmt(o.resultado)}</td>
+  </tr>`).join('');
+
+  const btn=$('imp-salvar');if(btn)btn.style.display='';
+}
+
+function checkDup(newOp){
+  return ops.some(o=>o.data===newOp.data&&o.ativo===newOp.ativo&&Math.abs(o.resultado-newOp.resultado)<0.01);
+}
+
+async function importOps(){
+  const contaId=$('imp-conta').value;
+  if(!contaId||!parsedOps.length){toast('Selecione uma conta e um arquivo.','err');return;}
+
+  const toImport=parsedOps.filter(o=>!checkDup(o));
+  if(!toImport.length){toast('Todas as operações já existem no sistema.','err');return;}
+
+  const btn=$('imp-salvar');
+  btn.textContent='Importando...';btn.disabled=true;
+
+  let ok=0,fail=0;
+  for(const op of toImport){
+    const {error}=await db.from('operacoes').insert({
+      user_id:user.id,conta_id:contaId,...op
+    });
+    if(error)fail++;
+    else{ops.push({...op,id:Date.now()+Math.random(),conta_id:contaId,user_id:user.id});ok++;}
+  }
+  ops.sort((a,b)=>a.data.localeCompare(b.data));
+
+  btn.textContent='Importar operações';btn.disabled=false;
+  const res=$('imp-result');
+  res.textContent=`✓ ${ok} operação(ões) importada(s) com sucesso${fail?` · ${fail} erro(s)`:''}.`;
+  show(res);
+
+  if(ok>0){
+    parsedOps=[];
+    hide($('imp-preview'));
+    $('imp-salvar').style.display='none';
+    $('imp-fname').textContent='';
+    toast(`${ok} operações importadas!`,'ok');
+  }
+}
+
+// hook import page nav
+const origNavTo=navTo;
+window.navTo=function(id){
+  origNavTo(id);
+  if(id==='pg-import')initImport();
+};
+
+// wire import button
+document.addEventListener('DOMContentLoaded',()=>{
+  const ib=$('imp-salvar');if(ib)ib.onclick=importOps;
+  const ic=$('imp-clear');if(ic)ic.onclick=()=>{parsedOps=[];hide($('imp-preview'));$('imp-salvar').style.display='none';$('imp-fname').textContent='';hide($('imp-result'));};
+});
 </script>
 </body>
 </html>

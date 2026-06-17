@@ -644,12 +644,19 @@ function fillOpConta(){
 function buildPeriodMenu(){
   const btn=$('btn-period'),menu=$('period-menu');
   if(!btn||!menu)return;
-  btn.addEventListener('click',e=>{e.stopPropagation();menu.classList.toggle('hidden');const cm=$('cfil-menu');if(cm)cm.classList.add('hidden');});
+  // remove old listeners by cloning
+  const newBtn=btn.cloneNode(true);
+  btn.parentNode.replaceChild(newBtn,btn);
+  newBtn.addEventListener('click',e=>{
+    e.stopPropagation();
+    menu.classList.toggle('hidden');
+    const cm=$('cfil-menu');if(cm)cm.classList.add('hidden');
+  });
   menu.querySelectorAll('.ddi').forEach(item=>{
     item.addEventListener('click',e=>{
       e.stopPropagation();
       activePeriod=item.dataset.p;
-      $('period-lbl').textContent=item.textContent;
+      const lbl=$('period-lbl');if(lbl)lbl.textContent=item.textContent;
       menu.querySelectorAll('.ddi').forEach(i=>i.classList.remove('active'));
       item.classList.add('active');
       menu.classList.add('hidden');
@@ -1192,42 +1199,95 @@ function parseMT(html){
   const doc=parser.parseFromString(html,'text/html');
   const rows=Array.from(doc.querySelectorAll('tr'));
   const ops=[];
+
+  // tipos a ignorar — qualquer coisa que nao seja trade executado
+  const SKIP_TYPES=new Set(['balance','deposit','withdrawal','credit','bonus','correction','rebate','swap','dividend']);
+  // tipos de trade validos
+  const TRADE_TYPES=new Set(['buy','sell','buy stop','sell stop','buy limit','sell limit']);
+
   for(const row of rows){
     const cells=Array.from(row.querySelectorAll('td')).map(td=>td.textContent.trim());
-    if(cells.length<13)continue;
+    const n=cells.length;
+    if(n<11)continue;
+
+    // validar data na coluna 0
     const c0=cells[0]||'';
-    if(c0.length<10)continue;
-    if(c0[4]!=='.'||c0[7]!=='.')continue;
-    const tipo=(cells[3]||'').toLowerCase();
-    if(!tipo||tipo==='balance'||tipo==='deposit'||tipo==='withdrawal'||tipo==='credit')continue;
-    if(!cells[9]||cells[9]==='')continue;
+    if(c0.length<10||c0[4]!=='.'||c0[7]!=='.')continue;
+
+    const tipo=(cells[3]||'').toLowerCase().trim();
+
+    // pular qualquer linha que nao seja trade executado
+    if(!tipo||SKIP_TYPES.has(tipo))continue;
+    // pular ordens pendentes que nao foram executadas (sem ativo na col 2)
     if(!cells[2]||cells[2]==='')continue;
-    const horarioAberto=cells[0];
-    const ativo=cells[2].trim();
-    const volume=parseFloat(cells[4])||0;
-    const sl=parseFloat(cells[6])||0;
-    const tp=parseFloat(cells[7])||0;
-    const horarioFechado=cells[8]||cells[0];
-    const lucroStr=(cells[12]||cells[cells.length-1]||'0').trim().replace(',','.');
-    const lucro=parseFloat(lucroStr)||0;
-    const rawDate=horarioFechado.slice(0,10);
-    const dateStr=rawDate.split('.').join('-');
-    if(dateStr.length!==10)continue;
-    // extract time HH:MM from horarioFechado
-    const horarioFechado2=cells[8]||cells[0];
-    const timePart=horarioFechado2.length>=19?horarioFechado2.slice(11,16):null;
+
+    const ativo=cells[2].trim().toUpperCase();
+    if(!ativo)continue;
+
+    let lucro=0,dateStr='',horarioFechado='',timePart=null;
+
+    if(n===14){
+      // Secao "Posicoes" — 14 colunas
+      // [0]=abertura [2]=ativo [3]=tipo [4]=volume [5]=preco_ab [6]=sl [7]=tp [8]=preco_fec [9]=data_fec? [12]=lucro
+      // Mas em alguns MT o fechamento esta em [8] e lucro em [11]
+      // formato: data | ticket | ativo | tipo | vol | sl | tp | preco_fec | lucro... 
+      // Verificar: lucro geralmente é o último float > 0 ou na posicao 11-13
+      const lucroStr=(cells[11]||cells[12]||'0').replace(/\s/g,'').replace(',','.');
+      lucro=parseFloat(lucroStr)||0;
+      horarioFechado=cells[8]||cells[0];
+      const rawDate=horarioFechado.slice(0,10);
+      dateStr=rawDate.split('.').join('-');
+      timePart=horarioFechado.length>=19?horarioFechado.slice(11,16):null;
+
+    }else if(n===15){
+      // Secao "Negociacoes" — 15 colunas
+      // [0]=tempo [1]=deal [2]=ativo [3]=tipo [4]=direcao(in/out) [5]=vol [6]=preco [7]=ordem [8]='' [9]=swap [10]=taxa [11]='' [12]=lucro [13]=saldo [14]=comentario
+      // IMPORTANTE: coluna [12] = lucro do deal, coluna [13] = SALDO ACUMULADO (nao usar!)
+      // Apenas processar linhas "out" (fechamento de posicao) para nao duplicar
+      const direcao=(cells[4]||'').toLowerCase();
+      // Aceitar 'out', 'out by', ou linhas sem direcao (MT4)
+      if(direcao==='in')continue; // pular abertura, usar so fechamento
+      const lucroStr=(cells[12]||'0').replace(/\s/g,'').replace(',','.');
+      lucro=parseFloat(lucroStr)||0;
+      horarioFechado=cells[0]; // fechamento usa a data desta linha
+      const rawDate=horarioFechado.slice(0,10);
+      dateStr=rawDate.split('.').join('-');
+      timePart=horarioFechado.length>=19?horarioFechado.slice(11,16):null;
+
+    }else if(n===11){
+      // Secao "Ordens" — 11 colunas (ordens, sem lucro real)
+      continue; // ignorar, nao tem lucro
+
+    }else{
+      // outros formatos: tentar extrair lucro do penultimo float nao-zero
+      const lastFloat=(cells[n-2]||cells[n-3]||'0').replace(/\s/g,'').replace(',','.');
+      lucro=parseFloat(lastFloat)||0;
+      horarioFechado=cells[8]||cells[0];
+      const rawDate=horarioFechado.slice(0,10);
+      dateStr=rawDate.split('.').join('-');
+      timePart=horarioFechado.length>=19?horarioFechado.slice(11,16):null;
+    }
+
+    if(!dateStr||dateStr.length!==10)continue;
+
+    // filtro extra: se lucro é zero e nao é uma operacao real, pular
+    // (deixar zeros passarem pois podem ser trades breakeven)
+
+    const tipoBase=tipo.replace(' stop','').replace(' limit','').trim();
     ops.push({
       data:dateStr,
-      ativo:ativo.toUpperCase(),
-      direcao:tipo==='buy'?'compra':'venda',
-      quantidade:volume,
-      stop_loss:sl,take_profit:tp,resultado:lucro,
+      ativo:ativo,
+      direcao:tipoBase==='buy'?'compra':'venda',
+      quantidade:parseFloat(cells[5]||cells[4])||0,
+      stop_loss:0,take_profit:0,
+      resultado:lucro,
       horario:timePart,
       emocao:null,qualidade:null,
       setup:'Importado MT',
-      obs:'Aberto: '+horarioAberto
+      obs:'Aberto: '+cells[0]
     });
   }
+
   if(!ops.length)throw new Error('Nenhuma operacao encontrada. Verifique se o arquivo e um relatorio detalhado do MetaTrader.');
   return ops;
 }

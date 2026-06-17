@@ -229,7 +229,7 @@ select option{background:var(--sf2)}
               <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
             </button>
             <div class="dd-menu hidden" id="period-menu">
-              <div class="ddi active" data-p="month" data-lbl="Este mês">Este mês</div>
+              <div class="ddi" data-p="month" data-lbl="Este mês">Este mês</div>
               <div class="ddi" data-p="week" data-lbl="Esta semana">Esta semana</div>
               <div class="ddi" data-p="today" data-lbl="Hoje">Hoje</div>
               <div class="ddi" data-p="30d" data-lbl="Últimos 30 dias">Últimos 30 dias</div>
@@ -644,26 +644,25 @@ function fillOpConta(){
 }
 
 function buildPeriodMenu(){
+  if(window._periodMenuReady)return;
+  window._periodMenuReady=true;
   const btn=$('btn-period'),menu=$('period-menu');
   if(!btn||!menu)return;
-  // remove old listeners by cloning
-  const newBtn=btn.cloneNode(true);
-  btn.parentNode.replaceChild(newBtn,btn);
-  newBtn.addEventListener('click',e=>{
+  btn.onclick=e=>{
     e.stopPropagation();
     menu.classList.toggle('hidden');
     const cm=$('cfil-menu');if(cm)cm.classList.add('hidden');
-  });
+  };
   menu.querySelectorAll('.ddi').forEach(item=>{
-    item.addEventListener('click',e=>{
+    item.onclick=e=>{
       e.stopPropagation();
       activePeriod=item.dataset.p;
-      const lbl=$('period-lbl');if(lbl)lbl.textContent=item.textContent;
+      const lbl=$('period-lbl');if(lbl)lbl.textContent=item.textContent.trim();
       menu.querySelectorAll('.ddi').forEach(i=>i.classList.remove('active'));
       item.classList.add('active');
       menu.classList.add('hidden');
       renderDash();
-    });
+    };
   });
 }
 
@@ -768,6 +767,23 @@ function renderDash(){
   try{
   destroyCharts();
   const co=filteredOps();
+  // empty state: show message and stop
+  if(!co.length){
+    destroyCharts();
+    const el=$('d-metrics');
+    if(el){
+      const periodoNome=($('period-lbl')||{}).textContent||'este período';
+      const contaNome=($('cfil-lbl')||{}).textContent||'esta conta';
+      el.innerHTML='<div class="empty" style="padding:2rem;text-align:center"><p style="font-size:15px;color:var(--tx);margin-bottom:.5rem">Nenhuma operação encontrada</p><p style="font-size:12px;color:var(--mt)">'+periodoNome+' · '+contaNome+'</p><p style="font-size:11px;color:var(--mt);margin-top:.5rem">Selecione "Todo o período" ou verifique se há operações nesta conta.</p></div>';
+    }
+    ['c-pnl','c-daily','c-dual','c-time'].forEach(id=>{const c=document.getElementById(id);if(c){const p=c.parentElement;if(p)p.style.display='none';}});
+    const emWrap=$('c-emocao-wrap');if(emWrap)emWrap.innerHTML='';
+    const cal=$('d-cal');if(cal)cal.innerHTML='';
+    const dops=$('d-ops');if(dops)dops.innerHTML='';
+    return;
+  }
+  // restore hidden charts if previously hidden
+  ['c-pnl','c-daily','c-dual','c-time'].forEach(id=>{const c=document.getElementById(id);if(c){const p=c.parentElement;if(p)p.style.display='';}});
   const sorted=co.slice().sort((a,b)=>a.data.localeCompare(b.data));
   const totalF=co.reduce((s,o)=>s+o.resultado,0);
   const totalAll=ops.reduce((s,o)=>s+o.resultado,0);
@@ -1007,6 +1023,15 @@ function renderDash(){
     ops=ops.filter(o=>o.id!==b.dataset.del);
     renderDash();toast('Removida.','ok');
   }));
+  // check if filtered ops is empty and show meaningful message
+  if(!co.length){
+    const el=$('d-metrics');
+    if(el){
+      const periodoNome=$('period-lbl')?$('period-lbl').textContent:'este período';
+      const contaNome=$('cfil-lbl')?$('cfil-lbl').textContent:'esta conta';
+      el.innerHTML='<div class="empty" style="padding:2rem;text-align:center"><p style="font-size:15px;margin-bottom:.5rem">Nenhuma operação encontrada</p><p style="font-size:12px;color:var(--mt)">Período: '+periodoNome+' · Conta: '+contaNome+'</p><p style="font-size:11px;color:var(--mt);margin-top:.5rem">Tente selecionar "Todo o período" ou verifique se há operações importadas para esta conta.</p></div>';
+    }
+  }
   }catch(err){console.error('renderDash error:',err.message,err.stack);const el=$('d-metrics');if(el)el.innerHTML='<div class="empty" style="color:var(--ls);font-size:12px">Erro: '+err.message+'</div>';}
 }
 

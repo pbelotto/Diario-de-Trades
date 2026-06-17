@@ -989,7 +989,7 @@ function renderDash(){
     ops=ops.filter(o=>o.id!==b.dataset.del);
     renderDash();toast('Removida.','ok');
   }));
-  }catch(err){console.error('renderDash error:',err);if($('d-metrics'))$('d-metrics').innerHTML='<div class="empty">Erro ao renderizar dashboard. Recarregue a página.</div>';}
+  }catch(err){console.error('renderDash error:',err.message,err.stack);const el=$('d-metrics');if(el)el.innerHTML='<div class="empty" style="color:var(--ls);font-size:12px">Erro: '+err.message+'</div>';}
 }
 
 // ── HIST ──

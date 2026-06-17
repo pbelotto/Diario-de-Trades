@@ -269,7 +269,7 @@ select option{background:var(--sf2)}
         <!-- métricas Tradezella style -->
         <div id="d-metrics"></div>
         <!-- charts row 1: P&L acumulado + donut -->
-        <div style="display:grid;grid-template-columns:1fr 290px;gap:.75rem">
+        <div id="chart-row1" style="display:grid;grid-template-columns:1fr 290px;gap:.75rem">
           <div class="cc"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem"><p class="cctitle" style="margin:0">Daily net cumulative P&L</p><span id="pnl-val" style="font-family:var(--mono);font-size:12px;font-weight:500"></span></div><canvas id="c-pnl" style="max-height:200px"></canvas></div>
           <div class="cc" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5rem">
             <p class="cctitle" style="align-self:flex-start;margin:0">Taxa de acerto</p>
@@ -287,17 +287,17 @@ select option{background:var(--sf2)}
           </div>
         </div>
         <!-- charts row 2: net daily + dual -->
-        <div class="g2">
+        <div class="g2" id="chart-row2">
           <div class="cc"><p class="cctitle">Net daily P&L</p><canvas id="c-daily" style="max-height:175px"></canvas></div>
           <div class="cc"><p class="cctitle">Daily &amp; cumulative net P&L</p><canvas id="c-dual" style="max-height:175px"></canvas></div>
         </div>
         <!-- charts row 3: scatter time + emocao -->
-        <div class="g2">
+        <div class="g2" id="chart-row3">
           <div class="cc"><p class="cctitle">Trade time performance</p><p style="font-size:10px;color:var(--mt);margin-bottom:.5rem">&#9679; ganho &nbsp;&#9679; perda &nbsp;—&nbsp;tamanho = resultado</p><canvas id="c-time" style="max-height:175px"></canvas></div>
           <div class="cc"><p class="cctitle">P&amp;L por ativo</p><div id="c-emocao-wrap" style="margin-top:.25rem"></div></div>
         </div>
         <!-- calendar -->
-        <div class="cc">
+        <div class="cc" id="chart-cal">
           <p class="cctitle">Calendário de P&L — <span id="cal-mo"></span></p>
           <div id="d-cal"></div>
         </div>
@@ -773,11 +773,10 @@ function renderDash(){
   // --- EMPTY STATE ---
   const dmEl=$('d-metrics');
   // helper: hide/show all chart .cc containers
-  const allChartIds=['c-pnl','c-donut','c-daily','c-dual','c-time'];
-  const setChartsVisible=v=>allChartIds.forEach(id=>{
+  const allChartRowIds=['chart-row1','chart-row2','chart-row3','chart-cal'];
+  const setChartsVisible=v=>allChartRowIds.forEach(id=>{
     const el=document.getElementById(id);
-    const cc=el&&el.closest('.cc');
-    if(cc){cc.style.visibility=v?'':'hidden';cc.style.opacity=v?'':'0';}
+    if(el){el.style.display=v?'':'none';}
   });
 
   if(!co.length){

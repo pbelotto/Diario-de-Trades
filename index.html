@@ -302,7 +302,69 @@ select option{background:var(--sf2)}
           <div id="d-cal"></div>
         </div>
         <!-- ops table -->
-        <div class="card"><p class="ctitle">Operações recentes</p><div id="d-ops"></div></div>
+        <div class="card" id="chart-ops"><p class="ctitle">Operações recentes</p><div id="d-ops"></div></div>
+      </div>
+    </div>
+
+    <!-- radar do trader -->
+    <div class="page" id="pg-radar">
+      <div class="ph">
+        <div>
+          <span class="ptitle">Radar do Trader</span>
+          <p style="font-size:12px;color:var(--mt);margin-top:2px">Não é previsão. É diagnóstico do seu comportamento operacional.</p>
+        </div>
+      </div>
+      <div class="pb">
+
+        <!-- Score Gain -->
+        <div class="g2" style="align-items:start">
+          <div class="cc" id="radar-score-card">
+            <p class="cctitle">Score Gain</p>
+            <div id="radar-score-content" style="display:flex;flex-direction:column;align-items:center;padding:1rem 0">
+              <div id="radar-score-num" style="font-size:64px;font-weight:700;font-family:var(--mono);line-height:1">--</div>
+              <div id="radar-score-label" style="font-size:13px;margin-top:.5rem;font-weight:500">Calculando...</div>
+              <div id="radar-score-badge" style="margin-top:.5rem"></div>
+              <div id="radar-score-reasons" style="margin-top:1rem;width:100%;font-size:12px"></div>
+            </div>
+          </div>
+          <div class="cc" id="radar-free-card">
+            <p class="cctitle">Diagnóstico gratuito</p>
+            <div id="radar-free-content" style="padding:.5rem 0">
+              <div class="empty">Calculando diagnóstico...</div>
+            </div>
+            <div style="margin-top:1rem">
+              <button class="btn btn-p" id="btn-free-radar" style="width:100%">Gerar diagnóstico gratuito</button>
+              <p id="radar-free-status" style="font-size:11px;color:var(--mt);margin-top:.5rem;text-align:center"></p>
+            </div>
+            <div id="radar-free-result" style="margin-top:1rem"></div>
+          </div>
+        </div>
+
+        <!-- Radar de Armadilhas -->
+        <div class="cc" id="radar-premium-card" style="margin-top:.75rem">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">
+            <p class="cctitle" style="margin:0">Radar de Armadilhas <span class="badge bw" style="font-size:10px;margin-left:.5rem">PREMIUM</span></p>
+          </div>
+          <div id="radar-premium-content"></div>
+        </div>
+
+        <!-- Histórico Radar -->
+        <div class="cc" id="radar-history-card" style="margin-top:.75rem">
+          <p class="cctitle">Últimos diagnósticos</p>
+          <div id="radar-history-list"></div>
+        </div>
+
+        <!-- Sala ao vivo -->
+        <div class="cc" style="margin-top:.75rem;background:linear-gradient(135deg,#1a2535,#0f1923);border:1px solid var(--ac)">
+          <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+            <div style="flex:1;min-width:200px">
+              <p style="font-size:14px;font-weight:600;color:var(--tx);margin-bottom:.25rem">Sala Ao Vivo — Clube do Gain</p>
+              <p style="font-size:12px;color:var(--mt)">O software mostra o padrão. Na sala ao vivo você entende o contexto, o timing e a execução.</p>
+            </div>
+            <button class="btn btn-p" onclick="openSala()" style="white-space:nowrap">Entrar na sala ao vivo →</button>
+          </div>
+        </div>
+
       </div>
     </div>
 
@@ -500,6 +562,7 @@ function navTo(id){
   if(id==='pg-pa'){if(allUsers.length)renderPA();else loadProf().then(renderPA).catch(console.error);}
   if(id==='pg-po'){if(allUsers.length)renderPO();else loadProf().then(renderPO).catch(console.error);}
   if(id==='pg-diag')renderDiagAluno();
+  if(id==='pg-radar')initRadar();
   if(id==='pg-pdiag')initPDiag();
 }
 
@@ -509,12 +572,14 @@ function buildNav(role){
     {id:'pg-lancar',label:'Lançar operação',ic:'<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>'},
     {id:'pg-import',label:'Importar MT4/MT5',ic:'<path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>'},
     {id:'pg-diag',label:'Diagnóstico',ic:'<path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>'},
+    {id:'pg-radar',label:'Radar do Trader',ic:'<path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>'},
     {id:'pg-hist',label:'Histórico',ic:'<path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>'},
   ];
   const pItems=[
     {id:'pg-pg',label:'Visão geral',ic:'<path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>'},
     {id:'pg-pa',label:'Alunos',ic:'<path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>'},
     {id:'pg-po',label:'Operações',ic:'<path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>'},
+    {id:'pg-radar',label:'Radar do Trader',ic:'<path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>'},
     {id:'pg-pdiag',label:'Diagnósticos',ic:'<path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>'},
   ];
   const items=role==='professor'?pItems:aItems;
@@ -773,11 +838,14 @@ function renderDash(){
   // --- EMPTY STATE ---
   const dmEl=$('d-metrics');
   // helper: hide/show all chart .cc containers
-  const allChartRowIds=['chart-row1','chart-row2','chart-row3','chart-cal'];
-  const setChartsVisible=v=>allChartRowIds.forEach(id=>{
-    const el=document.getElementById(id);
-    if(el){el.style.display=v?'':'none';}
-  });
+  const setChartsVisible=v=>{
+    // hide/show all chart containers
+    [['chart-row1','grid'],['chart-row2','grid'],['chart-row3','grid'],
+     ['chart-cal','block'],['chart-ops','block']].forEach(([id,disp])=>{
+      const el=document.getElementById(id);
+      if(el)el.style.display=v?disp:'none';
+    });
+  };
 
   if(!co.length){
     setChartsVisible(false);
@@ -1037,6 +1105,273 @@ function renderDash(){
       renderDash();toast('Removida.','ok');
     }));
   }
+}
+
+
+// ══ RADAR DO TRADER ══
+const SALA_AO_VIVO_URL = '#';
+function openSala(){window.open(SALA_AO_VIVO_URL,'_blank');} // Inserir link real da sala ao vivo
+
+function isMembroAtivo(){
+  return profile && (profile.role==='professor'||profile.role==='aluno_pagante'||profile.plano==='membro'||profile.plano==='premium');
+}
+
+function canUseFreeRadarToday(){
+  const key='free_radar_'+(user&&user.id)+'_'+new Date().toISOString().slice(0,10);
+  return !localStorage.getItem(key);
+}
+
+function markFreeRadarUsed(){
+  const key='free_radar_'+(user&&user.id)+'_'+new Date().toISOString().slice(0,10);
+  localStorage.setItem(key,'1');
+}
+
+function calcularScoreGain(opsArr){
+  if(!opsArr||!opsArr.length)return{score:0,razoes:[],label:'Sem dados'};
+  let score=100;
+  const razoes=[];
+  const ganhos=opsArr.filter(o=>o.resultado>0);
+  const perdas=opsArr.filter(o=>o.resultado<0);
+  const taxa=opsArr.length?ganhos.length/opsArr.length:0;
+  const gG=ganhos.reduce((s,o)=>s+o.resultado,0);
+  const gL=Math.abs(perdas.reduce((s,o)=>s+o.resultado,0));
+  const pf=gL>0?gG/gL:ganhos.length>0?99:0;
+  const avgG=ganhos.length?gG/ganhos.length:0;
+  const avgL=perdas.length?gL/perdas.length:0;
+
+  if(pf<1){score-=15;razoes.push('Profit factor abaixo de 1 — suas perdas superam seus ganhos');}
+  if(taxa<0.45){score-=10;razoes.push('Taxa de acerto abaixo de 45%');}
+
+  // trades por dia
+  const byDay={};opsArr.forEach(o=>{if(o.data)byDay[o.data]=(byDay[o.data]||0)+1;});
+  const avgTradesDay=Object.values(byDay).reduce((s,v)=>s+v,0)/(Object.keys(byDay).length||1);
+  if(avgTradesDay>3){score-=15;razoes.push('Média de '+avgTradesDay.toFixed(1)+' trades/dia — excesso operacional detectado');}
+
+  // sequência de losses
+  let maxSeq=0,cur=0;
+  opsArr.forEach(o=>{if(o.resultado<0){cur++;maxSeq=Math.max(maxSeq,cur);}else cur=0;});
+  if(maxSeq>=3){score-=15;razoes.push('Sequência máxima de '+maxSeq+' perdas consecutivas');}
+
+  // pior ativo
+  const byAtivo={};
+  opsArr.forEach(o=>{if(!byAtivo[o.ativo])byAtivo[o.ativo]=0;byAtivo[o.ativo]+=o.resultado;});
+  const piorAtivo=Object.entries(byAtivo).sort((a,b)=>a[1]-b[1])[0];
+  if(piorAtivo&&piorAtivo[1]<-100){score-=10;razoes.push(piorAtivo[0]+' está destruindo resultado ('+piorAtivo[1].toFixed(0)+')');}
+
+  // compra vs venda
+  const compras=opsArr.filter(o=>o.direcao==='compra');
+  const vendas=opsArr.filter(o=>o.direcao==='venda');
+  const resCompra=compras.reduce((s,o)=>s+o.resultado,0);
+  const resVenda=vendas.reduce((s,o)=>s+o.resultado,0);
+  if(compras.length>=5&&resCompra<-50){score-=10;razoes.push('Comprado: resultado histórico negativo ('+resCompra.toFixed(0)+')');}
+  else if(vendas.length>=5&&resVenda<-50){score-=10;razoes.push('Vendido: resultado histórico negativo ('+resVenda.toFixed(0)+')');}
+
+  if(avgL>avgG*1.5&&ganhos.length>0){score-=15;razoes.push('Perda média ($'+avgL.toFixed(0)+') é '+((avgL/Math.max(avgG,1)).toFixed(1))+'x maior que o ganho médio');}
+
+  score=Math.max(0,Math.min(100,score));
+  let label='',color='';
+  if(score>=80){label='Comportamento alinhado';color='var(--gn)';}
+  else if(score>=60){label='Atenção';color='var(--wn)';}
+  else if(score>=40){label='Risco alto';color='#f97316';}
+  else{label='Modo sabotagem';color='var(--ls)';}
+  return{score,label,color,razoes};
+}
+
+function calcularResumoRadar(opsArr){
+  if(!opsArr||!opsArr.length)return null;
+  const byAtivo={};
+  opsArr.forEach(o=>{if(!byAtivo[o.ativo])byAtivo[o.ativo]={res:0,n:0};byAtivo[o.ativo].res+=o.resultado;byAtivo[o.ativo].n++;});
+  const ativosSort=Object.entries(byAtivo).sort((a,b)=>a[1].res-b[1].res);
+  const piorAtivo=ativosSort[0];
+  const byDay={};
+  opsArr.forEach(o=>{if(o.data)byDay[o.data]=(byDay[o.data]||0)+1;});
+  const maxTradesDay=Math.max(...Object.values(byDay));
+  const ganhos=opsArr.filter(o=>o.resultado>0);
+  const taxa=Math.round(ganhos.length/opsArr.length*100);
+  return{piorAtivo,maxTradesDay,taxa,total:opsArr.length};
+}
+
+function saveRadarHistory(item){
+  const key='radar_history_'+(user&&user.id);
+  let hist=[];
+  try{hist=JSON.parse(localStorage.getItem(key)||'[]');}catch(e){}
+  hist.unshift(item);
+  if(hist.length>10)hist=hist.slice(0,10);
+  localStorage.setItem(key,JSON.stringify(hist));
+}
+
+function getRadarHistory(){
+  const key='radar_history_'+(user&&user.id);
+  try{return JSON.parse(localStorage.getItem(key)||'[]');}catch(e){return[];}
+}
+
+function renderRadarHistory(){
+  const el=document.getElementById('radar-history-list');
+  if(!el)return;
+  const hist=getRadarHistory();
+  if(!hist.length){el.innerHTML='<div class="empty">Nenhum diagnóstico gerado ainda.</div>';return;}
+  el.innerHTML=hist.map((h,i)=>'<div style="padding:.6rem 0;border-bottom:1px solid var(--bd);display:flex;flex-direction:column;gap:.2rem">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center">'
+    +'<span style="font-size:12px;color:var(--tx)">'+(h.ativo||'—')+' &middot; '+(h.intencao||'—')+'</span>'
+    +'<span style="font-family:var(--mono);font-size:11px;color:var(--mt)">'+h.data+'</span></div>'
+    +'<span style="font-size:11px;color:var(--mt)">Score: '+h.score+' &middot; '+h.label+'</span>'
+    +'</div>').join('');
+}
+
+function initRadar(){
+  const opsUsar=ops&&ops.length?ops:[];
+  const sg=calcularScoreGain(opsUsar);
+
+  // Score card
+  const numEl=document.getElementById('radar-score-num');
+  const lblEl=document.getElementById('radar-score-label');
+  const badgeEl=document.getElementById('radar-score-badge');
+  const reasonsEl=document.getElementById('radar-score-reasons');
+  if(numEl)numEl.textContent=sg.score;
+  if(numEl)numEl.style.color=sg.color;
+  if(lblEl){lblEl.textContent=sg.label;lblEl.style.color=sg.color;}
+  if(badgeEl)badgeEl.innerHTML='<span class="badge" style="background:'+sg.color+'20;color:'+sg.color+';font-size:12px;padding:.25rem .75rem">'+sg.label+'</span>';
+  if(reasonsEl&&sg.razoes.length){
+    reasonsEl.innerHTML='<p style="font-size:11px;color:var(--mt);margin-bottom:.5rem">Principais fatores de desconto:</p>'
+      +sg.razoes.slice(0,3).map(r=>'<div style="display:flex;gap:.4rem;align-items:flex-start;margin-bottom:.3rem">'
+        +'<span style="color:var(--ls);margin-top:1px">▼</span><span style="font-size:12px;color:var(--tx)">'+r+'</span></div>').join('');
+  }
+
+  // Free diagnóstico card
+  const resumo=calcularResumoRadar(opsUsar);
+  const freeEl=document.getElementById('radar-free-content');
+  if(freeEl&&resumo){
+    const frase=sg.score<50
+      ?'Você não está perdendo por falta de estratégia. Seu maior vazamento está na repetição de operações depois de já estar emocionalmente comprometido.'
+      :sg.score<70
+      ?'Seu comportamento operacional tem pontos críticos que aparecem repetidamente. Identificá-los é o primeiro passo.'
+      :'Seu comportamento está dentro do esperado. Continue monitorando os padrões negativos.';
+    freeEl.innerHTML='<div style="margin-bottom:.75rem;padding:.75rem;background:var(--sf2);border-radius:var(--r);border-left:3px solid var(--ac)">'
+      +'<p style="font-size:13px;color:var(--tx);font-style:italic">"'+frase+'"</p></div>'
+      +'<div class="g2" style="gap:.5rem">'
+      +'<div style="padding:.6rem;background:var(--sf2);border-radius:var(--r)">'
+      +'<p style="font-size:10px;color:var(--mt);margin-bottom:2px">MAIOR VAZAMENTO</p>'
+      +'<p style="font-size:12px;color:var(--tx)">'+(resumo.piorAtivo?resumo.piorAtivo[0]+' ('+resumo.piorAtivo[1].res.toFixed(0)+')':'Dados insuficientes')+'</p>'
+      +'</div>'
+      +'<div style="padding:.6rem;background:var(--sf2);border-radius:var(--r)">'
+      +'<p style="font-size:10px;color:var(--mt);margin-bottom:2px">EXCESSO OPERACIONAL</p>'
+      +'<p style="font-size:12px;color:var(--tx)">Pico: '+resumo.maxTradesDay+' trades/dia</p>'
+      +'</div></div>';
+  } else if(freeEl){
+    freeEl.innerHTML='<div class="empty">Importe operações para gerar seu diagnóstico gratuito.</div>';
+  }
+
+  // Free radar btn
+  const btnFree=document.getElementById('btn-free-radar');
+  const statusEl=document.getElementById('radar-free-status');
+  const resultEl=document.getElementById('radar-free-result');
+  if(btnFree){
+    const podeUsar=canUseFreeRadarToday();
+    if(!podeUsar){
+      btnFree.disabled=true;
+      if(statusEl)statusEl.textContent='Diagnóstico gratuito já usado hoje. Volte amanhã ou torne-se membro.';
+    } else {
+      btnFree.onclick=async()=>{
+        if(!ops||!ops.length){toast('Importe operações primeiro.','err');return;}
+        btnFree.disabled=true;btnFree.textContent='Analisando...';
+        try{
+          const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+            model:'claude-sonnet-4-6',max_tokens:600,
+            messages:[{role:'user',content:'Coach de trading. Analise em 3 parágrafos: Score Gain '+sg.score+'/100 ('+sg.label+'). Alertas: '+sg.razoes.join('; ')+'. Responda em português, sem prometer lucros, use seu comportamento mostra e seu histórico indica.'}]
+          })});
+          const data=await res.json();
+          const txt=data.content&&data.content[0]&&data.content[0].text||'Análise indisponível.';
+          if(resultEl)resultEl.innerHTML='<div style="padding:.75rem;background:var(--sf2);border-radius:var(--r);font-size:13px;line-height:1.6;color:var(--tx)">'+(txt||'').split('\n').join('<br>')+'</div>';
+          markFreeRadarUsed();
+          saveRadarHistory({data:new Date().toLocaleString('pt-BR'),ativo:'Diagnóstico geral',intencao:'Análise gratuita',score:sg.score,label:sg.label});
+          renderRadarHistory();
+        }catch(e){if(resultEl)resultEl.innerHTML='<div class="empty" style="color:var(--ls)">Erro na análise. Tente novamente.</div>';}
+        btnFree.textContent='Gerar diagnóstico gratuito';btnFree.disabled=false;
+      };
+    }
+  }
+
+  // Premium card
+  const premEl=document.getElementById('radar-premium-content');
+  if(premEl){
+    if(isMembroAtivo()){
+      premEl.innerHTML='<div class="g2" style="margin-bottom:.75rem">'
+        +'<div><label>Ativo que pretende operar</label>'
+        +'<select id="rdr-ativo" class="btn btn-sm" style="width:100%">'
+        +'<option>NQ/MNQ</option><option>Dow/MYM</option><option>Gold/MGC</option><option>Forex</option><option>Outro</option>'
+        +'</select></div>'
+        +'<div><label>Intenção</label>'
+        +'<select id="rdr-intent" class="btn btn-sm" style="width:100%">'
+        +'<option value="compra">Compra</option><option value="venda">Venda</option><option value="analise">Apenas analisar</option>'
+        +'</select></div></div>'
+        +'<div style="margin-bottom:.75rem"><label>O que você está pensando em fazer?</label>'
+        +'<textarea id="rdr-texto" style="width:100%;margin-top:4px;background:var(--sf2);border:1px solid var(--bd2);border-radius:var(--r);color:var(--tx);padding:.5rem;font-size:13px;resize:vertical;min-height:80px" placeholder="Ex: Estou pensando em vender porque o preço subiu muito e parece que vai cair..."></textarea></div>'
+        +'<button class="btn btn-p" id="btn-radar-ia" style="width:100%">Analisar armadilha →</button>'
+        +'<div id="radar-ia-result" style="margin-top:1rem"></div>';
+      
+      // bind analyze button after DOM update
+      setTimeout(()=>{
+        const btnIA=document.getElementById('btn-radar-ia');
+        if(btnIA)btnIA.onclick=gerarRadarIA;
+      },100);
+    } else {
+      premEl.innerHTML='<div style="filter:blur(3px);pointer-events:none;opacity:.5;margin-bottom:1rem;padding:1rem;background:var(--sf2);border-radius:var(--r)">'
+        +'<p style="font-size:13px;color:var(--tx)">NQ — Intenção: Venda<br>Risco operacional: 7/10<br>Veredito: ⚠️ Armadilha provável</p>'
+        +'<p style="font-size:12px;color:var(--mt);margin-top:.5rem">Seu comportamento neste ativo mostra padrão de entrada em exaustão de tendência...</p></div>'
+        +'<div style="text-align:center;padding:1rem">'
+        +'<p style="font-size:13px;color:var(--tx);margin-bottom:.5rem">Seu diagnóstico gratuito mostrou o problema.</p>'
+        +'<p style="font-size:12px;color:var(--mt);margin-bottom:1rem">O Radar de Armadilhas mostra <strong>quando você está prestes a repetir esse erro</strong> antes de clicar.</p>'
+        +'<p style="font-size:11px;color:var(--mt);margin-bottom:1rem;font-style:italic">"O mercado não precisa te vencer. Basta você repetir o mesmo erro."</p>'
+        +'<button class="btn btn-p" onclick="openSala()" style="font-size:14px;padding:.6rem 2rem">Entrar para o Clube do Gain &#8594;</button>'
+        +'</div>';
+    }
+  }
+
+  renderRadarHistory();
+}
+
+async function gerarRadarIA(){
+  const ativo=($('rdr-ativo')||{}).value||'';
+  const intencao=($('rdr-intent')||{}).value||'';
+  const texto=($('rdr-texto')||{}).value||'';
+  const resultEl=document.getElementById('radar-ia-result');
+  const btnIA=document.getElementById('btn-radar-ia');
+  if(!texto.trim()){toast('Descreva o que pretende fazer.','err');return;}
+  if(btnIA){btnIA.disabled=true;btnIA.textContent='Analisando armadilha...';}
+  if(resultEl)resultEl.innerHTML='<div class="empty">Processando diagnóstico...</div>';
+  
+  const sg=calcularScoreGain(ops||[]);
+  const resumo=calcularResumoRadar(ops||[]);
+  const piorAtStr=resumo&&resumo.piorAtivo?resumo.piorAtivo[0]+' ('+resumo.piorAtivo[1].res.toFixed(0)+')':'não identificado';
+  
+  // ATENÇÃO: chamada de IA no front-end apenas para protótipo.
+  // Antes de produção, migrar para Supabase Edge Function para proteger chave e aplicar limites.
+  const linhaAtivo='Ativo: '+ativo+' | Intenção: '+intencao;
+  const linhaTexto='O trader diz: '+texto;
+  const linhaHistorico='Score Gain: '+sg.score+'/100 ('+sg.label+') | Alertas: '+sg.razoes.slice(0,3).join('; ')+' | Pior ativo: '+piorAtStr;
+  const estrutura='Responda em português com estas seções: 1)ALERTA PRINCIPAL(1 frase forte) 2)PADRÃO HISTÓRICO(compare com histórico) 3)RISCO OPERACIONAL(0-10 e classificação) 4)VEREDITO(Operação alinhada/Atenção emocional/Armadilha provável/Não operar) 5)PRÓXIMA AÇÃO(orientação prática sem prometer lucro). Nunca use: compre agora, venda agora, lucro garantido. Use sempre: seu comportamento, seu histórico mostra, existe risco de você repetir.';
+  const prompt='Coach de trading especialista em psicologia operacional. '+linhaAtivo+'. '+linhaTexto+'. Histórico: '+linhaHistorico+'. '+estrutura;
+
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:800,messages:[{role:'user',content:prompt}]})
+    });
+    const data=await res.json();
+    const txt=data.content&&data.content[0]&&data.content[0].text||'Análise indisponível.';
+    if(resultEl){
+      resultEl.innerHTML='<div style="padding:1rem;background:var(--sf2);border-radius:var(--r);border-left:3px solid var(--ac)">'+'<div style="font-size:13px;line-height:1.7;color:var(--tx)">'+(txt||'').split('\n').join('<br>')+'</div>'
+        +'<div style="margin-top:1rem;padding-top:.75rem;border-top:1px solid var(--bd);text-align:center">'
+        +'<p style="font-size:12px;color:var(--mt);margin-bottom:.5rem">Leve esse diagnóstico para a sala ao vivo e compare com a leitura do Paulo durante o pregão.</p>'
+        +'<button class="btn btn-p btn-sm" onclick="openSala()">Entrar na sala ao vivo →</button>'
+        +'</div></div>';
+    }
+    saveRadarHistory({data:new Date().toLocaleString('pt-BR'),ativo,intencao,texto:texto.slice(0,80),score:sg.score,label:sg.label});
+    renderRadarHistory();
+  }catch(e){
+    if(resultEl)resultEl.innerHTML='<div class="empty" style="color:var(--ls)">Erro na análise. Verifique sua conexão e tente novamente.</div>';
+  }
+  if(btnIA){btnIA.disabled=false;btnIA.textContent='Analisar armadilha →';}
 }
 
 // ── HIST ──

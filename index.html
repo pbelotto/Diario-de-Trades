@@ -286,8 +286,8 @@ select option{background:var(--sf2)}
         </div>
         <!-- charts row 3: scatter time + emocao -->
         <div class="g2">
-          <div class="cc"><p class="cctitle">Trade time performance</p><p style="font-size:10px;color:var(--mt);margin-bottom:.5rem">&#9679; ganho &nbsp; &#9679; perda</p><canvas id="c-time" style="max-height:175px"></canvas></div>
-          <div class="cc"><p class="cctitle">Emocao vs resultado</p><div id="c-emocao-wrap"></div></div>
+          <div class="cc"><p class="cctitle">Trade time performance</p><p style="font-size:10px;color:var(--mt);margin-bottom:.5rem">&#9679; ganho &nbsp;&#9679; perda &nbsp;—&nbsp;tamanho = resultado</p><canvas id="c-time" style="max-height:175px"></canvas></div>
+          <div class="cc"><p class="cctitle">P&amp;L por ativo</p><div id="c-emocao-wrap" style="margin-top:.25rem"></div></div>
         </div>
         <!-- calendar -->
         <div class="cc">
@@ -828,49 +828,61 @@ function renderDash(){
       options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{...CT,maxRotation:45},grid:{display:false}},y:{ticks:{...CT,callback:v=>'$'+v},grid:CG}}}});
   }
 
-  // ── chart 4: scatter trade time performance
+  // ── chart 4: scatter trade time performance (usa horario se disponivel, senao usa indice)
   const ctxTime=$('c-time');
-  if(ctxTime){
+  if(ctxTime&&co.length){
     const timeOps=co.filter(o=>o.horario);
-    if(timeOps.length){
-      const toMin=t=>{const[h,m]=(t||'00:00').split(':').map(Number);return h*60+m;};
-      const scatterData=timeOps.map(o=>({x:toMin(o.horario),y:+o.resultado.toFixed(2),r:Math.min(12,Math.max(3,Math.abs(o.resultado)/20))}));
+    const useTime=timeOps.length>=Math.floor(co.length*0.3); // usa scatter se 30%+ tem horario
+    if(useTime){
+      const toMin=t=>{const p=(t||'00:00').split(':');return parseInt(p[0]||0)*60+parseInt(p[1]||0);};
+      const pts=timeOps.map(o=>({x:toMin(o.horario),y:+o.resultado.toFixed(2),r:Math.min(10,Math.max(4,Math.sqrt(Math.abs(o.resultado))*1.2))}));
       cBar=new Chart(ctxTime,{type:'bubble',data:{datasets:[
-        {data:scatterData.filter(p=>p.y>=0),backgroundColor:'rgba(34,208,138,.6)',borderColor:'rgba(34,208,138,.9)',borderWidth:1},
-        {data:scatterData.filter(p=>p.y<0),backgroundColor:'rgba(240,82,82,.6)',borderColor:'rgba(240,82,82,.9)',borderWidth:1}
-      ]},options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:i=>`${Math.floor(i.raw.x/60).toString().padStart(2,'0')}:${(i.raw.x%60).toString().padStart(2,'0')} — $${i.raw.y}`}}},
-        scales:{x:{ticks:{...CT,callback:v=>`${Math.floor(v/60).toString().padStart(2,'0')}:${(v%60).toString().padStart(2,'0')}`},grid:CG},y:{ticks:{...CT,callback:v=>'$'+v},grid:CG}}}});
+        {label:'Ganho',data:pts.filter(p=>p.y>=0),backgroundColor:'rgba(34,208,138,.65)',borderColor:'#22d08a',borderWidth:1},
+        {label:'Perda',data:pts.filter(p=>p.y<0),backgroundColor:'rgba(240,82,82,.65)',borderColor:'#f05252',borderWidth:1}
+      ]},options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:i=>{const h=Math.floor(i.raw.x/60).toString().padStart(2,'0'),m=(i.raw.x%60).toString().padStart(2,'0');return h+':'+m+' — '+fmt(i.raw.y);}}}},
+        scales:{x:{ticks:{...CT,callback:v=>{const h=Math.floor(v/60).toString().padStart(2,'0'),m=(v%60).toString().padStart(2,'0');return h+':'+m;}},grid:CG},y:{ticks:{...CT,callback:v=>'$'+v},grid:CG}}}});
     } else {
-      ctxTime.getContext('2d');
-      const wrap=ctxTime.parentElement;
-      if(wrap)wrap.innerHTML+='<div class="empty" style="margin-top:.5rem">Lance operações com horário para ver este gráfico.</div>';
+      // fallback: resultado por ativo (scatter com jitter)
+      const byAt2={};
+      co.forEach((o,i)=>{if(!byAt2[o.ativo])byAt2[o.ativo]=[];byAt2[o.ativo].push(o);});
+      const ativosU=Object.keys(byAt2);
+      const pts2=co.map(o=>({x:ativosU.indexOf(o.ativo)+(Math.random()-.5)*.4,y:+o.resultado.toFixed(2),r:Math.min(10,Math.max(4,Math.sqrt(Math.abs(o.resultado))*1.2))}));
+      cBar=new Chart(ctxTime,{type:'bubble',data:{datasets:[
+        {label:'Ganho',data:pts2.filter(p=>p.y>=0),backgroundColor:'rgba(34,208,138,.65)',borderColor:'#22d08a',borderWidth:1},
+        {label:'Perda',data:pts2.filter(p=>p.y<0),backgroundColor:'rgba(240,82,82,.65)',borderColor:'#f05252',borderWidth:1}
+      ]},options:{responsive:true,plugins:{legend:{display:false}},
+        scales:{x:{ticks:{...CT,callback:v=>ativosU[Math.round(v)]||''},grid:{display:false}},y:{ticks:{...CT,callback:v=>'$'+v},grid:CG}}}});
+      // update title
+      const titleEl=ctxTime.closest('.cc')?.querySelector('.cctitle');
+      if(titleEl)titleEl.textContent='Resultado por ativo (scatter)';
     }
   }
 
-  // ── emocao breakdown
+  // ── resultado por ativo (barras horizontais) — substitui emocao quando nao ha emocao
   const emWrap=$('c-emocao-wrap');
   if(emWrap){
-    const emMap={calmo:'😊 Calmo',focado:'🎯 Focado',ansioso:'😰 Ansioso',frustrado:'😤 Frustrado',impulsivo:'⚡ Impulsivo'};
-    const emColors={calmo:'var(--gn)',focado:'var(--ac)',ansioso:'var(--wn)',frustrado:'var(--ls)',impulsivo:'#c084fc'};
-    const byEm={};
-    co.forEach(o=>{if(o.emocao){if(!byEm[o.emocao])byEm[o.emocao]={res:0,n:0,g:0};byEm[o.emocao].res+=o.resultado;byEm[o.emocao].n++;if(o.resultado>0)byEm[o.emocao].g++;}});
-    const hasEm=Object.keys(byEm).length>0;
-    if(hasEm){
-      emWrap.innerHTML=Object.entries(byEm).sort((a,b)=>b[1].res-a[1].res).map(([k,v])=>{
-        const tx=Math.round(v.g/v.n*100);
-        const col=emColors[k]||'var(--mt)';
-        return`<div style="display:flex;align-items:center;gap:.75rem;padding:.45rem 0;border-bottom:1px solid var(--bd)">
-          <span style="font-size:13px;min-width:105px">${emMap[k]||k}</span>
-          <div style="flex:1;background:var(--sf2);border-radius:3px;height:5px;overflow:hidden">
-            <div style="width:${tx}%;height:5px;background:${col};border-radius:3px"></div>
-          </div>
-          <span style="font-size:11px;color:var(--mt);min-width:28px;text-align:right">${tx}%</span>
-          <span style="font-family:var(--mono);font-size:12px;min-width:65px;text-align:right;color:${v.res>=0?'var(--gn)':'var(--ls)'}">${v.res>=0?'+':''}$${v.res.toFixed(0)}</span>
-        </div>`;
-      }).join('');
-    } else {
-      emWrap.innerHTML='<div class="empty">Lance operações com emoção para ver este gráfico.</div>';
-    }
+    const byAt3={};
+    co.forEach(o=>{if(!byAt3[o.ativo])byAt3[o.ativo]={res:0,n:0,g:0};byAt3[o.ativo].res+=o.resultado;byAt3[o.ativo].n++;if(o.resultado>0)byAt3[o.ativo].g++;});
+    const ativoEntries=Object.entries(byAt3).sort((a,b)=>b[1].res-a[1].res).slice(0,7);
+    const maxAbsAt=Math.max(...ativoEntries.map(([,v])=>Math.abs(v.res)),1);
+    // update panel title
+    const titleEl2=emWrap.closest('.cc')?.querySelector('.cctitle');
+    if(titleEl2)titleEl2.textContent='P&L por ativo';
+    emWrap.innerHTML=ativoEntries.map(([k,v])=>{
+      const tx=Math.round(v.g/v.n*100);
+      const barW=Math.round(Math.abs(v.res)/maxAbsAt*100);
+      const col=v.res>=0?'var(--gn)':'var(--ls)';
+      return`<div style="padding:.45rem 0;border-bottom:1px solid var(--bd)">
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
+          <span style="font-family:var(--mono);font-weight:500">${k}</span>
+          <span style="color:var(--mt)">${v.n} ops · ${tx}% acerto</span>
+          <span style="font-family:var(--mono);color:${col}">${v.res>=0?'+':''}$${v.res.toFixed(0)}</span>
+        </div>
+        <div style="height:5px;background:var(--sf2);border-radius:3px;overflow:hidden">
+          <div style="width:${barW}%;height:5px;background:${col};border-radius:3px;opacity:.85"></div>
+        </div>
+      </div>`;
+    }).join('');
   }
 
   // calendar
@@ -891,10 +903,22 @@ function renderDash(){
     for(let d=1;d<=dim;d++){
       const key=`${yr}-${String(mo+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
       const val=byD[key];const isToday=d===now.getDate()&&mo===now.getMonth()&&yr===now.getFullYear();
-      const bg=val===undefined?'var(--sf2)':val>=0?`rgba(34,208,138,${Math.min(.85,Math.abs(val)/400+.12)})`:`rgba(240,82,82,${Math.min(.85,Math.abs(val)/400+.12)})`;
-      cal.innerHTML+=`<div title="${key}${val!==undefined?': '+(val>=0?'+':'')+'$'+val.toFixed(0):''}" style="background:${bg};border-radius:5px;min-height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;${isToday?'outline:1.5px solid var(--ac);':''}">
-        <span style="font-size:12px;color:var(--tx)">${d}</span>
-        ${val!==undefined?`<span style="font-size:9px;font-family:var(--mono);color:${val>=0?'var(--gn)':'var(--ls)'};margin-top:1px">${val>=0?'+':''}${val.toFixed(0)}</span>`:''}
+      // stronger contrast: min opacity .35, max 1.0, based on relative value
+      const absVals=Object.values(byD).map(v=>Math.abs(v));
+      const maxAbsDay=absVals.length?Math.max(...absVals,1):1;
+      const opacity=val===undefined?0:Math.min(1,Math.max(0.35,Math.abs(val)/maxAbsDay*0.85+0.2));
+      const bg=val===undefined?'var(--sf2)':val>=0?`rgba(34,208,138,${opacity})`:`rgba(240,82,82,${opacity})`;
+      // count ops for this day
+      const dayOpsCount=co.filter(o=>o.data===key).length;
+      const dayTx=dayOpsCount>0?Math.round(co.filter(o=>o.data===key&&o.resultado>0).length/dayOpsCount*100):0;
+      const txColor=val===undefined?'var(--mt)':val>=0?'rgba(255,255,255,.9)':'rgba(255,255,255,.9)';
+      cal.innerHTML+=`<div title="${key}${val!==undefined?': '+(val>=0?'+':'')+'$'+val.toFixed(0)+' ('+dayOpsCount+' ops)':''}"
+        style="background:${bg};border-radius:6px;min-height:60px;display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;padding:5px 6px;${isToday?'outline:2px solid var(--ac);':''}">
+        <span style="font-size:11px;font-weight:500;color:${val!==undefined?'rgba(255,255,255,.9)':'var(--mt)'}">${d}</span>
+        ${val!==undefined?`
+          <span style="font-size:11px;font-family:var(--mono);font-weight:600;color:rgba(255,255,255,.95);margin-top:2px">${val>=0?'+':''}$${Math.abs(val).toFixed(0)}</span>
+          <span style="font-size:9px;color:rgba(255,255,255,.7);margin-top:1px">${dayOpsCount} ${dayOpsCount===1?'trade':'trades'} · ${dayTx}%</span>
+        `:''}
       </div>`;
       const dow=new Date(yr,mo,d).getDay();
       if(dow===6||d===dim){

@@ -764,26 +764,34 @@ function gauge(pct,color){
 
 // ── RENDER DASH ──
 function renderDash(){
-  try{
   destroyCharts();
+
   const co=filteredOps();
-  // empty state: show message and stop
+  const periodoNome=($('period-lbl')||{}).textContent||'este período';
+  const contaNome=($('cfil-lbl')||{}).textContent||'todas as contas';
+
+  // --- EMPTY STATE ---
+  const dmEl=$('d-metrics');
   if(!co.length){
-    destroyCharts();
-    const el=$('d-metrics');
-    if(el){
-      const periodoNome=($('period-lbl')||{}).textContent||'este período';
-      const contaNome=($('cfil-lbl')||{}).textContent||'esta conta';
-      el.innerHTML='<div class="empty" style="padding:2rem;text-align:center"><p style="font-size:15px;color:var(--tx);margin-bottom:.5rem">Nenhuma operação encontrada</p><p style="font-size:12px;color:var(--mt)">'+periodoNome+' · '+contaNome+'</p><p style="font-size:11px;color:var(--mt);margin-top:.5rem">Selecione "Todo o período" ou verifique se há operações nesta conta.</p></div>';
-    }
-    ['c-pnl','c-daily','c-dual','c-time'].forEach(id=>{const c=document.getElementById(id);if(c){const p=c.parentElement;if(p)p.style.display='none';}});
-    const emWrap=$('c-emocao-wrap');if(emWrap)emWrap.innerHTML='';
+    if(dmEl)dmEl.innerHTML='<div class="empty" style="padding:2rem;text-align:center">'
+      +'<p style="font-size:15px;color:var(--tx);margin-bottom:.5rem">Nenhuma operação encontrada</p>'
+      +'<p style="font-size:12px;color:var(--mt)">'+periodoNome+' &middot; '+contaNome+'</p>'
+      +'<p style="font-size:11px;color:var(--mt);margin-top:.5rem">Selecione "Todo o per&iacute;odo" ou verifique se h&aacute; opera&ccedil;&otilde;es nesta conta.</p>'
+      +'</div>';
+    ['c-donut','c-pnl','c-daily','c-dual','c-time'].forEach(id=>{
+      const c=document.getElementById(id);
+      if(c){c.getContext('2d').clearRect(0,0,c.width,c.height);}
+    });
+    if($('d-pct'))$('d-pct').textContent='0%';
+    if($('d-g'))$('d-g').textContent='0 ops';
+    if($('d-l'))$('d-l').textContent='0 ops';
+    const emW=$('c-emocao-wrap');if(emW)emW.innerHTML='';
     const cal=$('d-cal');if(cal)cal.innerHTML='';
-    const dops=$('d-ops');if(dops)dops.innerHTML='';
+    const dops=$('d-ops');if(dops)dops.innerHTML='<div class="empty">Sem operações no período.</div>';
     return;
   }
-  // restore hidden charts if previously hidden
-  ['c-pnl','c-daily','c-dual','c-time'].forEach(id=>{const c=document.getElementById(id);if(c){const p=c.parentElement;if(p)p.style.display='';}});
+
+  // --- METRICS ---
   const sorted=co.slice().sort((a,b)=>a.data.localeCompare(b.data));
   const totalF=co.reduce((s,o)=>s+o.resultado,0);
   const totalAll=ops.reduce((s,o)=>s+o.resultado,0);
@@ -792,36 +800,47 @@ function renderDash(){
   const taxa=co.length?Math.round(ganhos.length/co.length*100):0;
   const gG=ganhos.reduce((s,o)=>s+o.resultado,0);
   const gL=Math.abs(perdas.reduce((s,o)=>s+o.resultado,0));
-  const fator=gL?+(gG/gL).toFixed(2):gG>0?'∞':'--';
-  const avgG=ganhos.length?+(gG/ganhos.length).toFixed(2):0;
-  const avgL=perdas.length?+(gL/perdas.length).toFixed(2):0;
+  const avgG=ganhos.length?gG/ganhos.length:0;
+  const avgL=perdas.length?gL/perdas.length:0;
   const wlBar=gG+gL>0?Math.round(gG/(gG+gL)*100):50;
+  const fatorNum=gL>0?gG/gL:ganhos.length>0?Infinity:0;
+  const fator=fatorNum===Infinity?'∞':fatorNum===0?'0.00':fatorNum.toFixed(2);
   // dias
-  const byDay={};co.forEach(o=>{if(o.data)byDay[o.data]=(byDay[o.data]||0)+o.resultado;});
-  const dias=Object.values(byDay);const diasW=dias.filter(v=>v>0).length;
+  const byDay={};co.forEach(o=>{if(o.data){byDay[o.data]=(byDay[o.data]||0)+o.resultado;}});
+  const dias=Object.values(byDay);
+  const diasW=dias.filter(v=>v>0).length;
   const dayPct=dias.length?Math.round(diasW/dias.length*100):0;
-  const fNum=typeof fator==='number'?Math.min(fator/4*100,100):fator==='∞'?100:0;
+  const fNum=typeof fator==='string'&&fator!=='∞'?parseFloat(fator):typeof fator==='number'?fator:0;
 
-  // metrics
+  // compra vs venda
+  const compras=co.filter(o=>o.direcao==='compra');
+  const vendas=co.filter(o=>o.direcao==='venda');
+  const txCompra=compras.length?Math.round(compras.filter(o=>o.resultado>0).length/compras.length*100):0;
+  const txVenda=vendas.length?Math.round(vendas.filter(o=>o.resultado>0).length/vendas.length*100):0;
+
+  // ativo rank
+  const byAtivo={};
+  co.forEach(o=>{if(!byAtivo[o.ativo])byAtivo[o.ativo]={res:0,n:0,g:0};byAtivo[o.ativo].res+=o.resultado;byAtivo[o.ativo].n++;if(o.resultado>0)byAtivo[o.ativo].g++;});
+  const ativoRank=Object.entries(byAtivo).sort((a,b)=>b[1].res-a[1].res);
+
+  // render metrics block
   (function(){
     const el=$('d-metrics');if(!el)return;
     const row1='<div class="met" style="padding:.75rem"><div class="ml">Net P&L</div>'
       +'<div class="mv '+(totalF>=0?'pos':'neg')+'">'+fmt(totalF)+'</div>'
-      +'<div class="ms">conta atual</div></div>';
+      +'<div class="ms">'+contaNome+'</div></div>';
     const row2='<div class="met" style="padding:.75rem;display:flex;flex-direction:column;align-items:center">'
       +'<div class="ml" style="align-self:flex-start">Trade win %</div>'
       +gauge(taxa,'#22d08a')
-      +'<div class="mv neu" style="font-size:15px;margin-top:-2px">'+(co.length?taxa+'%':'--')+'</div></div>';
+      +'<div class="mv neu" style="font-size:15px;margin-top:-2px">'+taxa+'%</div></div>';
     const row3='<div class="met" style="padding:.75rem;display:flex;flex-direction:column;align-items:center">'
       +'<div class="ml" style="align-self:flex-start">Profit factor</div>'
-      +gauge(typeof fator==='number'?Math.min(fator/4*100,100):fator==='inf'?100:0,'#4f7fff')
+      +gauge(fator==='∞'?100:Math.min(parseFloat(fator||0)/4*100,100),'#4f7fff')
       +'<div class="mv neu" style="font-size:15px;margin-top:-2px">'+fator+'</div></div>';
-    const dw=(()=>{const dp=Math.round(dias.length?diasW/dias.length*100:0);
-      return '<div class="met" style="padding:.75rem;display:flex;flex-direction:column;align-items:center">'
-        +'<div class="ml" style="align-self:flex-start">Day win %</div>'
-        +gauge(dp,'#f0b429')
-        +'<div class="mv neu" style="font-size:15px;margin-top:-2px">'+(dias.length?dp+'%':'--')+'</div></div>';
-    })();
+    const row4='<div class="met" style="padding:.75rem;display:flex;flex-direction:column;align-items:center">'
+      +'<div class="ml" style="align-self:flex-start">Day win %</div>'
+      +gauge(dayPct,'#f0b429')
+      +'<div class="mv neu" style="font-size:15px;margin-top:-2px">'+dayPct+'%</div></div>';
     const row5='<div class="met" style="padding:.75rem"><div class="ml">Avg win / loss</div>'
       +'<div style="margin:.4rem 0 .2rem">'
       +'<div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:3px">'
@@ -834,26 +853,26 @@ function renderDash(){
       +'<div class="mv '+(totalAll>=0?'pos':'neg')+'">'+fmt(totalAll)+'</div>'
       +'<div class="ms">todas as contas</div></div>';
     el.innerHTML='<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:.5rem;margin-bottom:.25rem">'
-      +row1+row2+row3+dw+row5+row6+'</div>';
+      +row1+row2+row3+row4+row5+row6+'</div>';
   })();
 
   // P&L badge
   const pc=totalF>=0?'var(--gn)':'var(--ls)';
-  if($('pnl-val'))$('pnl-val').innerHTML=`<span style="color:${pc}">${fmt(totalF)}</span>`;
+  if($('pnl-val'))$('pnl-val').innerHTML='<span style="color:'+pc+'">'+fmt(totalF)+'</span>';
 
-  // ── chart 1: cumulative P&L line
+  // ── CHART 1: cumulative P&L line
   const ctx1=$('c-pnl');
   if(ctx1&&co.length){
-    let acc=0;const pd=sorted.map(o=>{acc+=o.resultado;return+acc.toFixed(2)});
+    let acc=0;const pd=sorted.map(o=>{acc+=o.resultado;return+acc.toFixed(2);});
     const pColor=totalF>=0?'#22d08a':'#f05252';
     const gr=ctx1.getContext('2d').createLinearGradient(0,0,0,200);
     gr.addColorStop(0,totalF>=0?'rgba(34,208,138,.28)':'rgba(240,82,82,.28)');
     gr.addColorStop(1,'rgba(0,0,0,0)');
     cPnl=new Chart(ctx1,{type:'line',data:{labels:sorted.map((_,i)=>i),datasets:[{data:pd,borderColor:pColor,backgroundColor:gr,fill:true,tension:.35,pointRadius:sorted.length>30?0:3,pointBackgroundColor:pColor,pointHoverRadius:5,borderWidth:2}]},
-      options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{title:([i])=>fmtD(sorted[i.dataIndex]?.data),label:i=>'P&L: '+fmt(i.raw)},backgroundColor:'#1c2029',borderColor:'#2e3545',borderWidth:1,titleColor:'#e8eaf0',bodyColor:'#c0c4d0'}},scales:{x:{display:false},y:{ticks:CT,grid:CG}}}});
+      options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{title:([i])=>fmtD(sorted[i.dataIndex]&&sorted[i.dataIndex].data),label:i=>'P&L: '+fmt(i.raw)},backgroundColor:'#1c2029',borderColor:'#2e3545',borderWidth:1,titleColor:'#e8eaf0',bodyColor:'#c0c4d0'}},scales:{x:{display:false},y:{ticks:CT,grid:CG}}}});
   }
 
-  // ── donut acerto
+  // ── DONUT acerto
   const ctx3=$('c-donut');
   if(ctx3){
     const hasOps=ganhos.length+perdas.length>0;
@@ -864,54 +883,52 @@ function renderDash(){
     if($('d-l'))$('d-l').textContent=perdas.length+' ops';
   }
 
-  // ── chart 2: net daily P&L (bars por dia)
+  // ── CHART 2: net daily P&L bars
   const ctx2=$('c-daily');
   if(ctx2&&co.length){
     const byDay2={};
-    co.forEach(o=>{if(o.data){byDay2[o.data]=(byDay2[o.data]||0)+o.resultado;}});
-    const dayEntries=Object.entries(byDay2).sort((a,b)=>a[0].localeCompare(b[0]));
+    co.forEach(o=>{if(o.data)byDay2[o.data]=(byDay2[o.data]||0)+o.resultado;});
+    const de=Object.entries(byDay2).sort((a,b)=>a[0].localeCompare(b[0]));
     cBar=new Chart(ctx2,{type:'bar',data:{
-      labels:dayEntries.map(([d])=>d.slice(5)),
-      datasets:[{data:dayEntries.map(([,v])=>+v.toFixed(2)),
-        backgroundColor:dayEntries.map(([,v])=>v>=0?'rgba(34,208,138,.8)':'rgba(240,82,82,.8)'),
+      labels:de.map(([d])=>d.slice(5)),
+      datasets:[{data:de.map(([,v])=>+v.toFixed(2)),
+        backgroundColor:de.map(([,v])=>v>=0?'rgba(34,208,138,.8)':'rgba(240,82,82,.8)'),
         borderRadius:3,borderSkipped:false}]},
       options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{...CT,maxRotation:45},grid:{display:false}},y:{ticks:{...CT,callback:v=>'$'+v},grid:CG}}}});
   }
 
-  // ── chart 3: daily & cumulative dual (bars + line)
+  // ── CHART 3: daily & cumulative dual
   const ctxDual=$('c-dual');
   if(ctxDual&&co.length){
     const byDay3={};
-    co.forEach(o=>{if(o.data){byDay3[o.data]=(byDay3[o.data]||0)+o.resultado;}});
-    const de=Object.entries(byDay3).sort((a,b)=>a[0].localeCompare(b[0]));
-    let accD=0;const cumLine=de.map(([,v])=>{accD+=v;return+accD.toFixed(2);});
+    co.forEach(o=>{if(o.data)byDay3[o.data]=(byDay3[o.data]||0)+o.resultado;});
+    const de2=Object.entries(byDay3).sort((a,b)=>a[0].localeCompare(b[0]));
+    let accD=0;const cumLine=de2.map(([,v])=>{accD+=v;return+accD.toFixed(2);});
     cSetup=new Chart(ctxDual,{type:'bar',data:{
-      labels:de.map(([d])=>d.slice(5)),
+      labels:de2.map(([d])=>d.slice(5)),
       datasets:[
-        {type:'bar',data:de.map(([,v])=>+v.toFixed(2)),backgroundColor:de.map(([,v])=>v>=0?'rgba(34,208,138,.5)':'rgba(240,82,82,.5)'),borderRadius:2,borderSkipped:false,yAxisID:'y'},
+        {type:'bar',data:de2.map(([,v])=>+v.toFixed(2)),backgroundColor:de2.map(([,v])=>v>=0?'rgba(34,208,138,.5)':'rgba(240,82,82,.5)'),borderRadius:2,borderSkipped:false,yAxisID:'y'},
         {type:'line',data:cumLine,borderColor:'#4f7fff',backgroundColor:'transparent',tension:.3,pointRadius:0,borderWidth:2,yAxisID:'y'}
       ]},
       options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{...CT,maxRotation:45},grid:{display:false}},y:{ticks:{...CT,callback:v=>'$'+v},grid:CG}}}});
   }
 
-  // ── chart 4: scatter trade time performance (usa horario se disponivel, senao usa indice)
+  // ── CHART 4: trade time scatter / ativo scatter
   const ctxTime=$('c-time');
   if(ctxTime&&co.length){
     const timeOps=co.filter(o=>o.horario);
-    const useTime=timeOps.length>=Math.floor(co.length*0.3); // usa scatter se 30%+ tem horario
+    const useTime=timeOps.length>=Math.floor(co.length*0.3);
     if(useTime){
       const toMin=t=>{const p=(t||'00:00').split(':');return parseInt(p[0]||0)*60+parseInt(p[1]||0);};
       const pts=timeOps.map(o=>({x:toMin(o.horario),y:+o.resultado.toFixed(2),r:Math.min(10,Math.max(4,Math.sqrt(Math.abs(o.resultado))*1.2))}));
       cBar=new Chart(ctxTime,{type:'bubble',data:{datasets:[
         {label:'Ganho',data:pts.filter(p=>p.y>=0),backgroundColor:'rgba(34,208,138,.65)',borderColor:'#22d08a',borderWidth:1},
         {label:'Perda',data:pts.filter(p=>p.y<0),backgroundColor:'rgba(240,82,82,.65)',borderColor:'#f05252',borderWidth:1}
-      ]},options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:i=>{const h=Math.floor(i.raw.x/60).toString().padStart(2,'0'),m=(i.raw.x%60).toString().padStart(2,'0');return h+':'+m+' — '+fmt(i.raw.y);}}}},
+      ]},options:{responsive:true,plugins:{legend:{display:false}},
         scales:{x:{ticks:{...CT,callback:v=>{const h=Math.floor(v/60).toString().padStart(2,'0'),m=(v%60).toString().padStart(2,'0');return h+':'+m;}},grid:CG},y:{ticks:{...CT,callback:v=>'$'+v},grid:CG}}}});
     } else {
-      // fallback: resultado por ativo (scatter com jitter)
-      const opsForScatter=co.length>0?co:ops;
-      const byAt2={};
-      opsForScatter.forEach((o,i)=>{if(!byAt2[o.ativo])byAt2[o.ativo]=[];byAt2[o.ativo].push(o);});
+      const opsForScatter=co;
+      const byAt2={};opsForScatter.forEach(o=>{if(!byAt2[o.ativo])byAt2[o.ativo]=[];byAt2[o.ativo].push(o);});
       const ativosU=Object.keys(byAt2);
       const pts2=opsForScatter.map(o=>({x:ativosU.indexOf(o.ativo)+(Math.random()-.5)*.4,y:+o.resultado.toFixed(2),r:Math.min(10,Math.max(4,Math.sqrt(Math.abs(o.resultado))*1.2))}));
       cBar=new Chart(ctxTime,{type:'bubble',data:{datasets:[
@@ -919,120 +936,102 @@ function renderDash(){
         {label:'Perda',data:pts2.filter(p=>p.y<0),backgroundColor:'rgba(240,82,82,.65)',borderColor:'#f05252',borderWidth:1}
       ]},options:{responsive:true,plugins:{legend:{display:false}},
         scales:{x:{ticks:{...CT,callback:v=>ativosU[Math.round(v)]||''},grid:{display:false}},y:{ticks:{...CT,callback:v=>'$'+v},grid:CG}}}});
-      // update title
-      const titleEl=ctxTime.closest('.cc')?.querySelector('.cctitle');
-      if(titleEl)titleEl.textContent='Resultado por ativo (scatter)';
+      const tt=ctxTime.closest('.cc')&&ctxTime.closest('.cc').querySelector('.cctitle');
+      if(tt)tt.textContent='Resultado por ativo (scatter)';
     }
   }
 
-  // ── resultado por ativo (barras horizontais) — substitui emocao quando nao ha emocao
+  // ── P&L POR ATIVO
   const emWrap=$('c-emocao-wrap');
   if(emWrap){
-    // use co if available, else fall back to all ops
-    const opsForAtivo=co.length>0?co:ops;
     const byAt3={};
-    opsForAtivo.forEach(o=>{if(!byAt3[o.ativo])byAt3[o.ativo]={res:0,n:0,g:0};byAt3[o.ativo].res+=o.resultado;byAt3[o.ativo].n++;if(o.resultado>0)byAt3[o.ativo].g++;});
-    const ativoEntries=Object.entries(byAt3).sort((a,b)=>b[1].res-a[1].res).slice(0,7);
+    co.forEach(o=>{if(!byAt3[o.ativo])byAt3[o.ativo]={res:0,n:0,g:0};byAt3[o.ativo].res+=o.resultado;byAt3[o.ativo].n++;if(o.resultado>0)byAt3[o.ativo].g++;});
+    const ativoEntries=Object.entries(byAt3).sort((a,b)=>b[1].res-a[1].res).slice(0,8);
     const maxAbsAt=Math.max(...ativoEntries.map(([,v])=>Math.abs(v.res)),1);
+    const titleEl=$('c-emocao-wrap').closest('.cc')&&$('c-emocao-wrap').closest('.cc').querySelector('.cctitle');
+    if(titleEl)titleEl.textContent='P&L por ativo';
     emWrap.innerHTML=ativoEntries.map(([k,v])=>{
       const tx=Math.round(v.g/v.n*100);
       const barW=Math.round(Math.abs(v.res)/maxAbsAt*100);
       const col=v.res>=0?'var(--gn)':'var(--ls)';
-      return`<div style="display:flex;align-items:center;gap:.6rem;padding:.45rem 0;border-bottom:1px solid var(--bd)">
-        <span style="font-family:var(--mono);font-weight:500;min-width:55px;font-size:12px">${k}</span>
-        <span style="font-size:11px;color:var(--mt);min-width:50px">${v.n} ops</span>
-        <div style="flex:1;background:var(--sf2);border-radius:3px;height:6px;overflow:hidden">
-          <div style="width:${barW}%;height:6px;background:${col};border-radius:3px"></div>
-        </div>
-        <span style="font-size:11px;color:var(--mt);min-width:32px;text-align:right">${tx}%</span>
-        <span style="font-family:var(--mono);font-size:12px;min-width:60px;text-align:right;color:${col}">${v.res>=0?'+':''}$${v.res.toFixed(0)}</span>
-      </div>`;
+      return'<div style="display:flex;align-items:center;gap:.6rem;padding:.4rem 0;border-bottom:1px solid var(--bd)">'
+        +'<span style="font-family:var(--mono);font-weight:500;min-width:55px;font-size:12px">'+k+'</span>'
+        +'<span style="font-size:11px;color:var(--mt);min-width:50px">'+v.n+' ops</span>'
+        +'<div style="flex:1;background:var(--sf2);border-radius:3px;height:6px;overflow:hidden">'
+        +'<div style="width:'+barW+'%;height:6px;background:'+col+';border-radius:3px"></div></div>'
+        +'<span style="font-size:11px;color:var(--mt);min-width:32px;text-align:right">'+tx+'%</span>'
+        +'<span style="font-family:var(--mono);font-size:12px;min-width:60px;text-align:right;color:'+col+'">'+(v.res>=0?'+':'')+'$'+v.res.toFixed(0)+'</span>'
+        +'</div>';
     }).join('');
   }
 
-  // calendar
-  const now=new Date(),yr=now.getFullYear(),mo=now.getMonth();
-  if($('cal-mo'))$('cal-mo').textContent=now.toLocaleString('pt-BR',{month:'long',year:'numeric'});
-  const byD={};co.forEach(o=>{if(o.data)byD[o.data]=(byD[o.data]||0)+o.resultado;});
-  const fd=new Date(yr,mo,1).getDay(),dim=new Date(yr,mo+1,0).getDate();
+  // ── CALENDAR
   const cal=$('d-cal');
+  const calMo=$('cal-mo');
   if(cal){
-    // week totals
-    const wTot={};co.forEach(o=>{if(!o.data)return;const dt=new Date(o.data+'T12:00');const wk=Math.ceil((dt.getDate()+new Date(dt.getFullYear(),dt.getMonth(),1).getDay())/7);const k=`${dt.getFullYear()}-${dt.getMonth()}-${wk}`;wTot[k]=(wTot[k]||0)+o.resultado;});
-    cal.style.display='grid';
-    cal.style.gridTemplateColumns='repeat(7,1fr) 64px';
-    cal.style.gap='3px';
-    const days=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
-    cal.innerHTML=days.map(d=>`<div style="font-size:10px;color:var(--mt);text-align:center;padding:4px 0;font-weight:500">${d}</div>`).join('')+`<div style="font-size:10px;color:var(--mt);text-align:center;padding:4px 0">Semana</div>`;
-    for(let i=0;i<fd;i++)cal.innerHTML+=`<div></div>`;
-    for(let d=1;d<=dim;d++){
-      const key=`${yr}-${String(mo+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-      const val=byD[key];const isToday=d===now.getDate()&&mo===now.getMonth()&&yr===now.getFullYear();
-      // stronger contrast: min opacity .35, max 1.0, based on relative value
-      const absVals=Object.values(byD).map(v=>Math.abs(v));
-      const maxAbsDay=absVals.length?Math.max(...absVals,1):1;
-      const opacity=val===undefined?0:Math.min(1,Math.max(0.35,Math.abs(val)/maxAbsDay*0.85+0.2));
-      const bg=val===undefined?'var(--sf2)':val>=0?`rgba(34,208,138,${opacity})`:`rgba(240,82,82,${opacity})`;
-      // count ops for this day
+    const now2=new Date();
+    const yr2=now2.getFullYear(),mo2=now2.getMonth();
+    if(calMo)calMo.textContent=now2.toLocaleDateString('pt-BR',{month:'long',year:'numeric'}).replace(/^\w/,c=>c.toUpperCase());
+    const byD={};
+    co.forEach(o=>{if(o.data&&o.data.startsWith(yr2+'-'+String(mo2+1).padStart(2,'0')))byD[o.data]=(byD[o.data]||0)+o.resultado;});
+    const absVals=Object.values(byD).map(v=>Math.abs(v));
+    const maxAbsDay=absVals.length?Math.max(...absVals,1):1;
+    const firstDay=new Date(yr2,mo2,1).getDay();
+    const daysInMo=new Date(yr2,mo2+1,0).getDate();
+    const today2=now2.toISOString().slice(0,10);
+    const DAYS=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+    let html='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:4px">'
+      +DAYS.map(d=>'<div style="text-align:center;font-size:10px;color:var(--mt);padding:2px">'+d+'</div>').join('')+'</div>'
+      +'<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px">';
+    for(let i=0;i<firstDay;i++)html+='<div></div>';
+    for(let d=1;d<=daysInMo;d++){
+      const key=yr2+'-'+String(mo2+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+      const val=byD[key];
+      const isToday=key===today2;
+      const opacity=val===undefined?0:Math.min(1,Math.max(0.35,Math.abs(val)/maxAbsDay*.85+.2));
+      const bg=val===undefined?'var(--sf2)':val>=0?'rgba(34,208,138,'+opacity+')':'rgba(240,82,82,'+opacity+')';
       const dayOpsCount=co.filter(o=>o.data===key).length;
       const dayTx=dayOpsCount>0?Math.round(co.filter(o=>o.data===key&&o.resultado>0).length/dayOpsCount*100):0;
-      const txColor=val===undefined?'var(--mt)':val>=0?'rgba(255,255,255,.9)':'rgba(255,255,255,.9)';
       const txtC=val!==undefined?'rgba(255,255,255,.95)':'var(--mt)';
-      cal.innerHTML+=`<div title="${key}${val!==undefined?': '+(val>=0?'+':'')+'$'+val.toFixed(0)+' ('+dayOpsCount+' ops)':''}"
-        style="background:${bg};border-radius:6px;min-height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:4px 2px;${isToday?'outline:2px solid var(--ac);':''}">
-        <span style="font-size:11px;font-weight:500;color:${txtC}">${d}</span>
-        ${val!==undefined?`
-          <span style="font-size:12px;font-family:var(--mono);font-weight:700;color:rgba(255,255,255,1);margin-top:2px;text-shadow:0 1px 2px rgba(0,0,0,.4)">${val>=0?'+':''}$${Math.abs(val).toFixed(0)}</span>
-          <span style="font-size:9px;color:rgba(255,255,255,.8);margin-top:1px">${dayOpsCount}t · ${dayTx}%</span>
-        `:''}
-      </div>`;
-      const dow=new Date(yr,mo,d).getDay();
-      if(dow===6||d===dim){
-        const wk=Math.ceil((d+fd)/7);const wkey=`${yr}-${mo}-${wk}`;const wv=wTot[wkey];
-        cal.innerHTML+=`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:44px;border-left:1px solid var(--bd);padding:0 6px">
-          <span style="font-size:9px;color:var(--mt)">S${wk}</span>
-          <span style="font-size:11px;font-family:var(--mono);font-weight:500;color:${wv?(wv>=0?'var(--gn)':'var(--ls)'):'var(--mt)'}">${wv?(wv>=0?'+':'')+'$'+Math.abs(wv).toFixed(0):'$0'}</span>
-        </div>`;
-        if(d===dim&&dow!==6)for(let r=0;r<6-dow;r++)cal.innerHTML+=`<div></div>`;
-      }
+      html+='<div title="'+key+(val!==undefined?': '+(val>=0?'+':'')+'$'+val.toFixed(0)+' ('+dayOpsCount+' ops)':'')+'"'
+        +' style="background:'+bg+';border-radius:6px;min-height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:4px 2px;'+(isToday?'outline:2px solid var(--ac);':'')+'\">'
+        +'<span style="font-size:11px;font-weight:500;color:'+txtC+'">'+d+'</span>'
+        +(val!==undefined?'<span style="font-size:12px;font-family:var(--mono);font-weight:700;color:rgba(255,255,255,1);margin-top:2px;text-shadow:0 1px 2px rgba(0,0,0,.4)">'+(val>=0?'+':'')+'$'+Math.abs(val).toFixed(0)+'</span>'
+          +'<span style="font-size:9px;color:rgba(255,255,255,.8);margin-top:1px">'+dayOpsCount+'t &middot; '+dayTx+'%</span>':'')
+        +'</div>';
     }
+    html+='</div>';
+    cal.innerHTML=html;
   }
 
-  // ops table
-  const recent=co.slice().sort((a,b)=>b.data.localeCompare(a.data)).slice(0,10);
-  $('d-ops').innerHTML=recent.length?`<div class="tw"><table>
-    <thead><tr><th>Data</th><th>Horário</th><th>Ativo</th><th>Dir.</th><th>Qtd</th><th>SL</th><th>TP</th><th>Resultado</th><th>Emoção</th><th>★</th><th>Obs</th><th></th></tr></thead>
-    <tbody>${recent.map(o=>`<tr>
-      <td style="font-family:var(--mono);font-size:12px">${fmtD(o.data)}</td>
-      <td style="font-family:var(--mono);font-size:11px;color:var(--mt)">${o.horario||'-'}</td>
-      <td><strong>${o.ativo}</strong></td>
-      <td><span class="badge ${o.direcao==='compra'?'bg':'bl'}">${o.direcao}</span></td>
-      <td>${o.quantidade}</td>
-      <td style="font-size:12px;color:var(--ls)">${o.stop_loss?'-$'+o.stop_loss:'-'}</td>
-      <td style="font-size:12px;color:var(--gn)">${o.take_profit?'+$'+o.take_profit:'-'}</td>
-      <td style="font-family:var(--mono);font-weight:500;color:${o.resultado>=0?'var(--gn)':'var(--ls)'}">${fmt(o.resultado)}</td>
-      <td>${o.emocao?`<span class="em-${o.emocao}">${{calmo:'😊',focado:'🎯',ansioso:'😰',frustrado:'😤',impulsivo:'⚡'}[o.emocao]||''} ${o.emocao}</span>`:'-'}</td>
-      <td>${o.qualidade?'★'.repeat(o.qualidade)+'☆'.repeat(5-o.qualidade):'-'}</td>
-      <td style="color:var(--mt);max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${o.obs||'-'}</td>
-      <td><button class="btn btn-sm btn-d" data-del="${o.id}">×</button></td>
-    </tr>`).join('')}</tbody>
-  </table></div>`:`<div class="empty">Nenhuma operação no período.<br><button class="btn btn-p btn-sm" onclick="navTo('pg-lancar')" style="margin-top:.75rem">Lançar operação</button></div>`;
-  $('d-ops').querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',async()=>{
-    if(!confirm('Remover?'))return;
-    await db.from('operacoes').delete().eq('id',b.dataset.del);
-    ops=ops.filter(o=>o.id!==b.dataset.del);
-    renderDash();toast('Removida.','ok');
-  }));
-  // check if filtered ops is empty and show meaningful message
-  if(!co.length){
-    const el=$('d-metrics');
-    if(el){
-      const periodoNome=$('period-lbl')?$('period-lbl').textContent:'este período';
-      const contaNome=$('cfil-lbl')?$('cfil-lbl').textContent:'esta conta';
-      el.innerHTML='<div class="empty" style="padding:2rem;text-align:center"><p style="font-size:15px;margin-bottom:.5rem">Nenhuma operação encontrada</p><p style="font-size:12px;color:var(--mt)">Período: '+periodoNome+' · Conta: '+contaNome+'</p><p style="font-size:11px;color:var(--mt);margin-top:.5rem">Tente selecionar "Todo o período" ou verifique se há operações importadas para esta conta.</p></div>';
-    }
+  // ── OPS TABLE (last 20)
+  const dops=$('d-ops');
+  if(dops){
+    const recent=co.slice().sort((a,b)=>b.data.localeCompare(a.data)).slice(0,20);
+    if(!recent.length){dops.innerHTML='<div class="empty">Sem operações no período.</div>';return;}
+    dops.innerHTML='<div style="overflow-x:auto"><table class="tbl"><thead><tr>'
+      +'<th>Data</th><th>Hor.</th><th>Ativo</th><th>Dir.</th><th>Qtd</th><th>Resultado</th><th>Emoção</th><th>★</th><th>Obs</th><th></th>'
+      +'</tr></thead><tbody>'
+      +recent.map(o=>'<tr>'
+        +'<td style="font-family:var(--mono);font-size:12px">'+fmtD(o.data)+'</td>'
+        +'<td style="font-family:var(--mono);font-size:11px;color:var(--mt)">'+(o.horario||'-')+'</td>'
+        +'<td><strong>'+o.ativo+'</strong></td>'
+        +'<td><span class="badge '+(o.direcao==='compra'?'bg':'bl')+'">'+o.direcao+'</span></td>'
+        +'<td>'+(o.quantidade||0)+'</td>'
+        +'<td style="font-family:var(--mono);font-weight:500;color:'+(o.resultado>=0?'var(--gn)':'var(--ls)')+'">'+fmt(o.resultado)+'</td>'
+        +'<td>'+(o.emocao?'<span class="em-'+o.emocao+'">'+(({calmo:'😊',focado:'🎯',ansioso:'😰',frustrado:'😤',impulsivo:'⚡'})[o.emocao]||'')+' '+o.emocao+'</span>':'-')+'</td>'
+        +'<td style="color:var(--wn)">'+(o.qualidade?'★'.repeat(o.qualidade):'-')+'</td>'
+        +'<td style="color:var(--mt);max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(o.obs||'-')+'</td>'
+        +'<td><button class="btn btn-sm btn-d" data-del="'+o.id+'">×</button></td>'
+        +'</tr>').join('')
+      +'</tbody></table></div>';
+    dops.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',async()=>{
+      if(!confirm('Remover?'))return;
+      await db.from('operacoes').delete().eq('id',b.dataset.del);
+      ops=ops.filter(o=>o.id!==b.dataset.del);
+      renderDash();toast('Removida.','ok');
+    }));
   }
-  }catch(err){console.error('renderDash error:',err.message,err.stack);const el=$('d-metrics');if(el)el.innerHTML='<div class="empty" style="color:var(--ls);font-size:12px">Erro: '+err.message+'</div>';}
 }
 
 // ── HIST ──

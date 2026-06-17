@@ -195,7 +195,10 @@ select option{background:var(--sf2)}
 <!-- APP -->
 <div id="app" class="hidden">
   <aside class="sidebar">
-    <div class="sb-logo"><div class="sb-dot"></div><span class="sb-txt">Diário de Trades</span></div>
+    <div class="sb-logo" style="cursor:pointer" onclick="navTo('pg-dash')" title="Ir ao Dashboard">
+      <img src="data:image/png;base64,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" style="width:26px;height:26px;border-radius:50%;object-fit:cover;flex-shrink:0"/>
+      <span class="sb-txt">Diário de Trades</span>
+    </div>
     <nav class="sb-nav" id="snav"></nav>
     <div class="sb-foot">
       <div class="uinfo">
@@ -843,10 +846,11 @@ function renderDash(){
         scales:{x:{ticks:{...CT,callback:v=>{const h=Math.floor(v/60).toString().padStart(2,'0'),m=(v%60).toString().padStart(2,'0');return h+':'+m;}},grid:CG},y:{ticks:{...CT,callback:v=>'$'+v},grid:CG}}}});
     } else {
       // fallback: resultado por ativo (scatter com jitter)
+      const opsForScatter=co.length>0?co:ops;
       const byAt2={};
-      co.forEach((o,i)=>{if(!byAt2[o.ativo])byAt2[o.ativo]=[];byAt2[o.ativo].push(o);});
+      opsForScatter.forEach((o,i)=>{if(!byAt2[o.ativo])byAt2[o.ativo]=[];byAt2[o.ativo].push(o);});
       const ativosU=Object.keys(byAt2);
-      const pts2=co.map(o=>({x:ativosU.indexOf(o.ativo)+(Math.random()-.5)*.4,y:+o.resultado.toFixed(2),r:Math.min(10,Math.max(4,Math.sqrt(Math.abs(o.resultado))*1.2))}));
+      const pts2=opsForScatter.map(o=>({x:ativosU.indexOf(o.ativo)+(Math.random()-.5)*.4,y:+o.resultado.toFixed(2),r:Math.min(10,Math.max(4,Math.sqrt(Math.abs(o.resultado))*1.2))}));
       cBar=new Chart(ctxTime,{type:'bubble',data:{datasets:[
         {label:'Ganho',data:pts2.filter(p=>p.y>=0),backgroundColor:'rgba(34,208,138,.65)',borderColor:'#22d08a',borderWidth:1},
         {label:'Perda',data:pts2.filter(p=>p.y<0),backgroundColor:'rgba(240,82,82,.65)',borderColor:'#f05252',borderWidth:1}
@@ -861,26 +865,24 @@ function renderDash(){
   // ── resultado por ativo (barras horizontais) — substitui emocao quando nao ha emocao
   const emWrap=$('c-emocao-wrap');
   if(emWrap){
+    // use co if available, else fall back to all ops
+    const opsForAtivo=co.length>0?co:ops;
     const byAt3={};
-    co.forEach(o=>{if(!byAt3[o.ativo])byAt3[o.ativo]={res:0,n:0,g:0};byAt3[o.ativo].res+=o.resultado;byAt3[o.ativo].n++;if(o.resultado>0)byAt3[o.ativo].g++;});
+    opsForAtivo.forEach(o=>{if(!byAt3[o.ativo])byAt3[o.ativo]={res:0,n:0,g:0};byAt3[o.ativo].res+=o.resultado;byAt3[o.ativo].n++;if(o.resultado>0)byAt3[o.ativo].g++;});
     const ativoEntries=Object.entries(byAt3).sort((a,b)=>b[1].res-a[1].res).slice(0,7);
     const maxAbsAt=Math.max(...ativoEntries.map(([,v])=>Math.abs(v.res)),1);
-    // update panel title
-    const titleEl2=emWrap.closest('.cc')?.querySelector('.cctitle');
-    if(titleEl2)titleEl2.textContent='P&L por ativo';
     emWrap.innerHTML=ativoEntries.map(([k,v])=>{
       const tx=Math.round(v.g/v.n*100);
       const barW=Math.round(Math.abs(v.res)/maxAbsAt*100);
       const col=v.res>=0?'var(--gn)':'var(--ls)';
-      return`<div style="padding:.45rem 0;border-bottom:1px solid var(--bd)">
-        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
-          <span style="font-family:var(--mono);font-weight:500">${k}</span>
-          <span style="color:var(--mt)">${v.n} ops · ${tx}% acerto</span>
-          <span style="font-family:var(--mono);color:${col}">${v.res>=0?'+':''}$${v.res.toFixed(0)}</span>
+      return`<div style="display:flex;align-items:center;gap:.6rem;padding:.45rem 0;border-bottom:1px solid var(--bd)">
+        <span style="font-family:var(--mono);font-weight:500;min-width:55px;font-size:12px">${k}</span>
+        <span style="font-size:11px;color:var(--mt);min-width:50px">${v.n} ops</span>
+        <div style="flex:1;background:var(--sf2);border-radius:3px;height:6px;overflow:hidden">
+          <div style="width:${barW}%;height:6px;background:${col};border-radius:3px"></div>
         </div>
-        <div style="height:5px;background:var(--sf2);border-radius:3px;overflow:hidden">
-          <div style="width:${barW}%;height:5px;background:${col};border-radius:3px;opacity:.85"></div>
-        </div>
+        <span style="font-size:11px;color:var(--mt);min-width:32px;text-align:right">${tx}%</span>
+        <span style="font-family:var(--mono);font-size:12px;min-width:60px;text-align:right;color:${col}">${v.res>=0?'+':''}$${v.res.toFixed(0)}</span>
       </div>`;
     }).join('');
   }
@@ -912,12 +914,13 @@ function renderDash(){
       const dayOpsCount=co.filter(o=>o.data===key).length;
       const dayTx=dayOpsCount>0?Math.round(co.filter(o=>o.data===key&&o.resultado>0).length/dayOpsCount*100):0;
       const txColor=val===undefined?'var(--mt)':val>=0?'rgba(255,255,255,.9)':'rgba(255,255,255,.9)';
+      const txtC=val!==undefined?'rgba(255,255,255,.95)':'var(--mt)';
       cal.innerHTML+=`<div title="${key}${val!==undefined?': '+(val>=0?'+':'')+'$'+val.toFixed(0)+' ('+dayOpsCount+' ops)':''}"
-        style="background:${bg};border-radius:6px;min-height:60px;display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;padding:5px 6px;${isToday?'outline:2px solid var(--ac);':''}">
-        <span style="font-size:11px;font-weight:500;color:${val!==undefined?'rgba(255,255,255,.9)':'var(--mt)'}">${d}</span>
+        style="background:${bg};border-radius:6px;min-height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:4px 2px;${isToday?'outline:2px solid var(--ac);':''}">
+        <span style="font-size:11px;font-weight:500;color:${txtC}">${d}</span>
         ${val!==undefined?`
-          <span style="font-size:11px;font-family:var(--mono);font-weight:600;color:rgba(255,255,255,.95);margin-top:2px">${val>=0?'+':''}$${Math.abs(val).toFixed(0)}</span>
-          <span style="font-size:9px;color:rgba(255,255,255,.7);margin-top:1px">${dayOpsCount} ${dayOpsCount===1?'trade':'trades'} · ${dayTx}%</span>
+          <span style="font-size:12px;font-family:var(--mono);font-weight:700;color:rgba(255,255,255,1);margin-top:2px;text-shadow:0 1px 2px rgba(0,0,0,.4)">${val>=0?'+':''}$${Math.abs(val).toFixed(0)}</span>
+          <span style="font-size:9px;color:rgba(255,255,255,.8);margin-top:1px">${dayOpsCount}t · ${dayTx}%</span>
         `:''}
       </div>`;
       const dow=new Date(yr,mo,d).getDay();
@@ -986,13 +989,25 @@ function renderHist(){
 
 // ══ PROFESSOR ══
 async function loadProf(){
-  const {data:us}=await db.from('profiles').select('*').eq('role','aluno');
-  const {data:ac}=await db.from('contas').select('*');
-  const {data:ao}=await db.from('operacoes').select('*').order('data',{ascending:false});
-  allUsers=(us||[]).map(u=>({...u,contas:(ac||[]).filter(c=>c.user_id===u.id),ops:(ao||[]).filter(o=>o.user_id===u.id)}));
-  const sel=$('po-filter');
-  if(sel)sel.innerHTML=`<option value="all">Todos os alunos</option>`+allUsers.map(u=>`<option value="${u.id}">${u.nome}</option>`).join('');
-  if(sel)sel.onchange=()=>renderPO();
+  try{
+    const [{data:us},{data:ac},{data:ao}]=await Promise.all([
+      db.from('profiles').select('*').eq('role','aluno'),
+      db.from('contas').select('*'),
+      db.from('operacoes').select('*').order('data',{ascending:false})
+    ]);
+    allUsers=(us||[]).map(u=>({
+      ...u,
+      contas:(ac||[]).filter(c=>c.user_id===u.id),
+      ops:(ao||[]).filter(o=>o.user_id===u.id)
+    }));
+    const sel=$('po-filter');
+    if(sel){
+      sel.innerHTML=`<option value="all">Todos os alunos</option>`+allUsers.map(u=>`<option value="${u.id}">${u.nome}</option>`).join('');
+      sel.onchange=()=>renderPO();
+    }
+    const pds=$('pdiag-sel');
+    if(pds)pds.innerHTML=`<option value="">Selecione um aluno</option>`+allUsers.map(u=>`<option value="${u.id}">${u.nome}</option>`).join('');
+  }catch(e){console.error('loadProf error',e);}
 }
 
 function renderPG(){
@@ -1376,22 +1391,65 @@ function calcDiagMetrics(opsArr, contasArr) {
   });
 
   // insights automáticos
+  const diasFull=['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
   const insights = [];
-  if(taxa < 40) insights.push({tipo:'alerta', txt:'Taxa de acerto abaixo de 40% — revise a seleção de entradas ou o gerenciamento de risco.'});
-  if(taxa >= 65) insights.push({tipo:'positivo', txt:`Taxa de acerto de ${taxa.toFixed(0)}% — excelente consistência nas entradas.`});
-  if(fator && fator < 1) insights.push({tipo:'alerta', txt:`Fator de lucro ${fator.toFixed(2)} — as perdas superam os ganhos. Aumente o TP ou reduza o SL.`});
-  if(fator && fator >= 2) insights.push({tipo:'positivo', txt:`Fator de lucro ${fator.toFixed(2)} — ótima relação risco/retorno.`});
-  if(avgL > avgG*1.5 && ganhos.length>0) insights.push({tipo:'alerta', txt:`Perda média ($${avgL.toFixed(0)}) muito maior que ganho médio ($${avgG.toFixed(0)}) — possível dificuldade em cortar perdas.`});
-  if(avgG > avgL*1.5 && perdas.length>0) insights.push({tipo:'positivo', txt:`Ganho médio ($${avgG.toFixed(0)}) bem maior que perda média ($${avgL.toFixed(0)}) — boa relação risco/retorno por trade.`});
-  if(worstDow.i>=0 && byDow[worstDow.i].n>=2) insights.push({tipo:'alerta', txt:`${dias[worstDow.i]} é seu pior dia da semana (média $${(byDow[worstDow.i].res/byDow[worstDow.i].n).toFixed(0)} por sessão). Considere reduzir exposição.`});
-  if(bestDow.i>=0 && byDow[bestDow.i].n>=2) insights.push({tipo:'positivo', txt:`${dias[bestDow.i]} é seu melhor dia (média $${(byDow[bestDow.i].res/byDow[bestDow.i].n).toFixed(0)} por sessão).`});
-  if(maxSeqL >= 4) insights.push({tipo:'alerta', txt:`Sequência máxima de ${maxSeqL} perdas consecutivas detectada. Tenha um plano de pausa após 3 perdas seguidas.`});
-  if(setupRank.length>1 && setupRank[0][1].res > 0 && setupRank[setupRank.length-1][1].res < 0)
-    insights.push({tipo:'info', txt:`Melhor setup: "${setupRank[0][0]}" (+$${setupRank[0][1].res.toFixed(0)}). Pior: "${setupRank[setupRank.length-1][0]}" ($${setupRank[setupRank.length-1][1].res.toFixed(0)}).`});
-  if(compras.length>2 && vendas.length>2) {
-    if(txCompra > txVenda+15) insights.push({tipo:'info', txt:`Você performa melhor comprado (${txCompra}% acerto vs ${txVenda}% vendido).`});
-    if(txVenda > txCompra+15) insights.push({tipo:'info', txt:`Você performa melhor vendido (${txVenda}% acerto vs ${txCompra}% comprado).`});
+
+  // acerto
+  if(taxa < 40) insights.push({tipo:'alerta', txt:`Taxa de acerto de ${taxa.toFixed(0)}% — abaixo do mínimo recomendável. Revise critérios de entrada.`});
+  else if(taxa >= 65) insights.push({tipo:'positivo', txt:`Taxa de acerto de ${taxa.toFixed(0)}% — excelente consistência nas entradas.`});
+  else insights.push({tipo:'info', txt:`Taxa de acerto de ${taxa.toFixed(0)}% — dentro do esperado para day trade.`});
+
+  // fator de lucro
+  if(fator && fator < 1) insights.push({tipo:'alerta', txt:`Fator de lucro ${fator.toFixed(2)} — as perdas superam os ganhos mesmo com bom acerto. Revise o tamanho das posições.`});
+  else if(fator && fator >= 2) insights.push({tipo:'positivo', txt:`Fator de lucro ${fator.toFixed(2)} — ótima relação entre ganhos e perdas.`});
+
+  // relação ganho/perda
+  if(avgL > avgG*1.5 && ganhos.length>0) insights.push({tipo:'alerta', txt:`Perda média ($${avgL.toFixed(0)}) muito maior que ganho médio ($${avgG.toFixed(0)}) — possível dificuldade em aceitar pequenas perdas.`});
+  if(avgG > avgL*1.5 && perdas.length>0) insights.push({tipo:'positivo', txt:`Ganho médio ($${avgG.toFixed(0)}) bem superior à perda média ($${avgL.toFixed(0)}) — excelente relação risco/retorno por trade.`});
+
+  // dias da semana (nome completo)
+  if(worstDow.i>=0 && byDow[worstDow.i].n>=2){
+    const avgDow=(byDow[worstDow.i].res/byDow[worstDow.i].n).toFixed(0);
+    insights.push({tipo:'alerta', txt:`${diasFull[worstDow.i]} é seu pior dia da semana (média $${avgDow} por sessão). Considere reduzir exposição ou não operar neste dia.`});
   }
+  if(bestDow.i>=0 && byDow[bestDow.i].n>=2){
+    const avgDow=(byDow[bestDow.i].res/byDow[bestDow.i].n).toFixed(0);
+    insights.push({tipo:'positivo', txt:`${diasFull[bestDow.i]} é seu melhor dia (média $${avgDow} por sessão) — concentre sua melhor performance neste dia.`});
+  }
+
+  // sequências
+  if(maxSeqL >= 4) insights.push({tipo:'alerta', txt:`Sequência máxima de ${maxSeqL} perdas consecutivas detectada. Implemente uma regra de pausa após 3 perdas seguidas.`});
+  if(maxSeqG >= 5) insights.push({tipo:'positivo', txt:`Sequência máxima de ${maxSeqG} ganhos consecutivos — você tem capacidade de entrar em fluxo. Aproveite os dias de consistência.`});
+
+  // compra vs venda
+  if(compras.length>2 && vendas.length>2) {
+    if(txCompra > txVenda+15) insights.push({tipo:'info', txt:`Você performa melhor comprado (${txCompra}% acerto vs ${txVenda}% vendido). Foque em setups de compra.`});
+    else if(txVenda > txCompra+15) insights.push({tipo:'info', txt:`Você performa melhor vendido (${txVenda}% acerto vs ${txCompra}% comprado). Foque em setups de venda.`});
+  }
+
+  // ativo mais lucrativo vs mais prejudicial
+  if(ativoRank.length>0){
+    const melhorAt=ativoRank[0];
+    if(melhorAt[1].res>0) insights.push({tipo:'positivo', txt:`Seu ativo mais lucrativo é ${melhorAt[0]} (+$${melhorAt[1].res.toFixed(0)} em ${melhorAt[1].n} operações). Priorize-o.`});
+    const piorAt=ativoRank[ativoRank.length-1];
+    if(piorAt[1].res<0&&ativoRank.length>1) insights.push({tipo:'alerta', txt:`${piorAt[0]} está destruindo resultado ($${piorAt[1].res.toFixed(0)}). Avalie reduzir ou pausar operações neste ativo.`});
+  }
+
+  // dias lucrativos vs perdedores
+  const byDayAll={};opsArr.forEach(o=>{if(o.data){byDayAll[o.data]=(byDayAll[o.data]||0)+o.resultado;}});
+  const dayVals=Object.values(byDayAll);
+  const diasLucro=dayVals.filter(v=>v>0).length;
+  const diasPerda=dayVals.filter(v=>v<0).length;
+  const diasPct=dayVals.length?Math.round(diasLucro/dayVals.length*100):0;
+  if(dayVals.length>=5){
+    if(diasPct>=70) insights.push({tipo:'positivo', txt:`${diasPct}% dos dias foram lucrativos (${diasLucro} de ${dayVals.length}) — alta consistência diária.`});
+    else if(diasPct<50) insights.push({tipo:'alerta', txt:`Apenas ${diasPct}% dos dias foram lucrativos (${diasLucro} de ${dayVals.length}). Revise o horário e condições de mercado em que opera.`});
+  }
+
+  // expectância por trade
+  const expectancia=opsArr.length?(total/opsArr.length):0;
+  if(expectancia>0) insights.push({tipo:'info', txt:`Expectância por trade: +$${expectancia.toFixed(2)} — cada operação gera valor esperado positivo.`});
+  else if(expectancia<0) insights.push({tipo:'alerta', txt:`Expectância negativa ($${expectancia.toFixed(2)} por trade) — o sistema atual não é lucrativo no longo prazo.`});
 
   return {total,taxa,avgG,avgL,fator,grossG,grossL,maxSeqG,maxSeqL,
     byDow,dias,bestDow,worstDow,setupRank,ativoRank,

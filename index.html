@@ -471,62 +471,84 @@ function toast(m,t='ok'){const el=$('toast');el.textContent=m;el.className='show
 
 // ── FILTER ──
 function parseOpDateLocal(value){
-  if(!value)return null;
+  if (!value) return null;
 
-  let s=String(value).trim().replace(/\./g,'-');
+  let sx = String(value).trim().replace(/\./g, '-');
 
-  if(/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}/.test(s)){
-    s=s.replace(' ','T');
+  if (/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}/.test(sx)) {
+    sx = sx.replace(' ', 'T');
   }
 
-  if(/^\d{4}-\d{2}-\d{2}$/.test(s)){
-    const [y,m,d]=s.split('-').map(Number);
-    return new Date(y,m-1,d,12,0,0);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(sx)) {
+    const [y, m, d] = sx.split('-').map(Number);
+    return new Date(y, m - 1, d, 12, 0, 0);
   }
 
-  const d=new Date(s);
-  return isNaN(d)?null:d;
+  const d = new Date(sx);
+  return isNaN(d) ? null : d;
 }
-function startOfDay(d){return new Date(d.getFullYear(),d.getMonth(),d.getDate(),0,0,0,0)}
-function endOfDay(d){return new Date(d.getFullYear(),d.getMonth(),d.getDate(),23,59,59,999)}
+
+function startOfDay(d){
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+}
+
+function endOfDay(d){
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+}
+
 function startOfWeekMonday(d){
-  const x=startOfDay(d);
-  const day=x.getDay();
-  x.setDate(x.getDate()+(day===0?-6:1-day));
+  const x = startOfDay(d);
+  const day = x.getDay();
+  x.setDate(x.getDate() + (day === 0 ? -6 : 1 - day));
   return x;
 }
+
 function filteredOps(){
-  if(!ops||!Array.isArray(ops))return[];
+  if (!ops || !Array.isArray(ops)) return [];
 
-  const now=new Date();
-  let from=null,to=null;
+  const now = new Date();
+  let from = null;
+  let to = null;
 
-  if(activePeriod==='today'){
-    from=startOfDay(now);to=endOfDay(now);
-  }else if(activePeriod==='week'){
-    from=startOfWeekMonday(now);to=endOfDay(now);
-  }else if(activePeriod==='month'){
-    from=new Date(now.getFullYear(),now.getMonth(),1,0,0,0,0);to=endOfDay(now);
-  }else if(activePeriod==='30d'){
-    from=new Date(now.getTime()-30*86400000);to=endOfDay(now);
-  }else if(activePeriod==='lmonth'){
-    const y=now.getFullYear(),m=now.getMonth();
-    const ly=m===0?y-1:y,lm=m===0?11:m-1;
-    from=new Date(ly,lm,1,0,0,0,0);
-    to=new Date(ly,lm+1,0,23,59,59,999);
-  }else if(activePeriod==='quarter'){
-    const q=Math.floor(now.getMonth()/3);
-    from=new Date(now.getFullYear(),q*3,1,0,0,0,0);to=endOfDay(now);
-  }else if(activePeriod==='ytd'){
-    from=new Date(now.getFullYear(),0,1,0,0,0,0);to=endOfDay(now);
+  if (activePeriod === 'today') {
+    from = startOfDay(now);
+    to = endOfDay(now);
+  } else if (activePeriod === 'week') {
+    from = startOfWeekMonday(now);
+    to = endOfDay(now);
+  } else if (activePeriod === 'month') {
+    from = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    to = endOfDay(now);
+  } else if (activePeriod === '30d') {
+    from = new Date(now.getTime() - 30 * 86400000);
+    to = endOfDay(now);
+  } else if (activePeriod === 'lmonth') {
+    const y = now.getFullYear();
+    const m = now.getMonth();
+    const ly = m === 0 ? y - 1 : y;
+    const lm = m === 0 ? 11 : m - 1;
+    from = new Date(ly, lm, 1, 0, 0, 0, 0);
+    to = new Date(ly, lm + 1, 0, 23, 59, 59, 999);
+  } else if (activePeriod === 'quarter') {
+    const q = Math.floor(now.getMonth() / 3);
+    from = new Date(now.getFullYear(), q * 3, 1, 0, 0, 0, 0);
+    to = endOfDay(now);
+  } else if (activePeriod === 'ytd') {
+    from = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
+    to = endOfDay(now);
   }
 
-  return ops.filter(o=>{
-    if(activeContaFil&&activeContaFil!=='all'&&String(o.conta_id)!==String(activeContaFil))return false;
-    if(!from&&!to)return true;
-    const d=parseOpDateLocal(o.data||o.created_at);
-    if(!d)return false;
-    return d>=from&&d<=to;
+  return ops.filter(o => {
+    if (activeContaFil && activeContaFil !== 'all' && String(o.conta_id) !== String(activeContaFil)) {
+      return false;
+    }
+
+    if (!from && !to) return true;
+
+    const d = parseOpDateLocal(o.data || o.created_at);
+    if (!d) return false;
+
+    return d >= from && d <= to;
   });
 }
 
@@ -1267,94 +1289,102 @@ function processFile(file){
 }
 
 function parseMT(html){
-  html=String(html||'').split(String.fromCharCode(0)).join('');
+  html = String(html || '').split(String.fromCharCode(0)).join('');
 
-  const parser=new DOMParser();
-  const doc=parser.parseFromString(html,'text/html');
-  const rows=[...doc.querySelectorAll('tr')].map(tr=>
-    [...tr.querySelectorAll('td,th')].map(td=>
-      td.textContent.trim().replace(/\u00a0/g,' ')
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const rows = [...doc.querySelectorAll('tr')].map(tr =>
+    [...tr.querySelectorAll('td,th')].map(td =>
+      td.textContent.trim().replace(/\u00a0/g, ' ')
     )
   );
 
-  const parsed=[];
-  let section='';
+  const parsed = [];
+  let section = '';
 
-  const toNum=v=>{
-    let st=String(v??'').trim();
-    if(!st)return 0;
-    st=st.replace(/\s/g,'').replace(/,/g,'').replace(/[^\d.\-]/g,'');
-    const n=parseFloat(st);
-    return Number.isFinite(n)?n:0;
+  const toNum = v => {
+    let sx = String(v ?? '').trim();
+    if (!sx) return 0;
+    sx = sx.replace(/\s/g, '').replace(/,/g, '').replace(/[^\d.\-]/g, '');
+    const n = parseFloat(sx);
+    return Number.isFinite(n) ? n : 0;
   };
 
-  const toISODate=dt=>{
-    const st=String(dt||'').trim().replace(/\./g,'-');
-    const d=st.split(' ')[0];
-    return /^\d{4}-\d{2}-\d{2}$/.test(d)?d:'';
+  const toISODate = dt => {
+    const sx = String(dt || '').trim().replace(/\./g, '-');
+    const d = sx.split(' ')[0];
+    return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : '';
   };
 
-  const toTime=dt=>{
-    const p=String(dt||'').trim().split(' ');
-    return p[1]?p[1].slice(0,5):null;
+  const toTime = dt => {
+    const p = String(dt || '').trim().split(' ');
+    return p[1] ? p[1].slice(0, 5) : '';
   };
 
-  for(const cells of rows){
-    const joined=cells.join(' ').toLowerCase();
+  for (const cells of rows) {
+    const joined = cells.join(' ').toLowerCase();
 
-    if(joined.includes('posições')||joined.includes('posicoes')||joined.includes('positions')){
-      section='posicoes';
+    if (joined.includes('posições') || joined.includes('posicoes') || joined.includes('positions')) {
+      section = 'posicoes';
       continue;
     }
 
-    if(joined.includes('ordens')||joined.includes('orders')||joined.includes('transações')||joined.includes('transacoes')||joined.includes('deals')){
-      section='';
+    if (
+      joined.includes('ordens') ||
+      joined.includes('orders') ||
+      joined.includes('transações') ||
+      joined.includes('transacoes') ||
+      joined.includes('deals')
+    ) {
+      section = '';
       continue;
     }
 
-    if(section!=='posicoes')continue;
-    if(cells.length!==14)continue;
+    if (section !== 'posicoes') continue;
+    if (cells.length !== 14) continue;
 
-    const abertura=cells[0];
-    const positionId=cells[1];
-    const ativo=String(cells[2]||'').trim().toUpperCase();
-    const tipo=String(cells[3]||'').trim().toLowerCase();
-    const fechamento=cells[9];
+    const abertura = cells[0];
+    const positionId = cells[1];
+    const ativo = String(cells[2] || '').trim().toUpperCase();
+    const tipo = String(cells[3] || '').trim().toLowerCase();
+    const fechamento = cells[9];
 
-    if(!ativo)continue;
-    if(tipo!=='buy'&&tipo!=='sell')continue;
-    if(!fechamento)continue;
+    if (!ativo) continue;
+    if (tipo !== 'buy' && tipo !== 'sell') continue;
+    if (!fechamento) continue;
 
-    const data=toISODate(fechamento);
-    if(!data)continue;
+    const data = toISODate(fechamento);
+    if (!data) continue;
 
-    const volume=toNum(cells[5]);
-    const precoEntrada=toNum(cells[6]);
-    const stopLoss=toNum(cells[7]);
-    const takeProfit=toNum(cells[8]);
-    const precoSaida=toNum(cells[10]);
-    const comissao=toNum(cells[11]);
-    const swap=toNum(cells[12]);
-    const lucroBruto=toNum(cells[13]);
-    const resultado=+(lucroBruto+comissao+swap).toFixed(2);
+    const volume = toNum(cells[5]);
+    const precoEntrada = toNum(cells[6]);
+    const stopLoss = toNum(cells[7]);
+    const takeProfit = toNum(cells[8]);
+    const precoSaida = toNum(cells[10]);
+    const comissao = toNum(cells[11]);
+    const swap = toNum(cells[12]);
+    const lucroBruto = toNum(cells[13]);
+    const resultado = +(lucroBruto + comissao + swap).toFixed(2);
 
     parsed.push({
       data,
       ativo,
-      direcao:tipo==='buy'?'compra':'venda',
-      quantidade:volume||1,
-      stop_loss:stopLoss||0,
-      take_profit:takeProfit||0,
+      direcao: tipo === 'buy' ? 'compra' : 'venda',
+      quantidade: volume || 1,
+      stop_loss: stopLoss || 0,
+      take_profit: takeProfit || 0,
       resultado,
-      horario:toTime(fechamento),
-      emocao:null,
-      qualidade:null,
-      setup:'Importado MetaTrader',
-      obs:(`MT Position ${positionId} | Ab: ${abertura} | Fe: ${fechamento} | Entrada: ${precoEntrada} | Saída: ${precoSaida} | Lucro bruto: ${lucroBruto.toFixed(2)} | Comissão: ${comissao.toFixed(2)} | Swap: ${swap.toFixed(2)}`).slice(0,500)
+      horario: toTime(fechamento),
+      emocao: null,
+      qualidade: null,
+      setup: 'Importado MetaTrader',
+      obs: (`MT Position ${positionId} | Ab: ${abertura} | Fe: ${fechamento} | Entrada: ${precoEntrada} | Saída: ${precoSaida} | Lucro bruto: ${lucroBruto.toFixed(2)} | Comissão: ${comissao.toFixed(2)} | Swap: ${swap.toFixed(2)}`).slice(0, 500)
     });
   }
 
-  if(!parsed.length)throw new Error('Nenhuma operação fechada encontrada na seção Posições do relatório MetaTrader.');
+  if (!parsed.length) {
+    throw new Error('Nenhuma operação fechada encontrada na seção Posições do relatório MetaTrader.');
+  }
+
   return parsed;
 }
 
@@ -1448,100 +1478,121 @@ function showPreview(ops){
   const btn=$('imp-salvar');if(btn)btn.style.display='';
 }
 
-function buildSafeOp(op,contaId){
-  return{
-    user_id:user.id,
-    conta_id:contaId,
-    data:op.data,
-    ativo:String(op.ativo||'').toUpperCase(),
-    direcao:op.direcao,
-    quantidade:Number(op.quantidade||1),
-    stop_loss:Number(op.stop_loss||0),
-    take_profit:Number(op.take_profit||0),
-    resultado:Number(op.resultado||0),
-    setup:op.setup||null,
-    obs:(op.obs||'').slice(0,500)||null,
-    horario:op.horario||null,
-    emocao:op.emocao||null,
-    qualidade:op.qualidade||null
-  };
-}
-
 function checkDup(newOp){
-  if(!ops||!Array.isArray(ops))return false;
-  return ops.some(o=>
-    String(o.data)===String(newOp.data)&&
-    String(o.ativo||'').toUpperCase()===String(newOp.ativo||'').toUpperCase()&&
-    String(o.direcao)===String(newOp.direcao)&&
-    String(o.horario||'')===String(newOp.horario||'')&&
-    Math.abs(Number(o.resultado||0)-Number(newOp.resultado||0))<0.01
+  if (!ops || !Array.isArray(ops)) return false;
+
+  return ops.some(o =>
+    String(o.data) === String(newOp.data) &&
+    String(o.ativo || '').toUpperCase() === String(newOp.ativo || '').toUpperCase() &&
+    String(o.direcao) === String(newOp.direcao) &&
+    String(o.horario || '') === String(newOp.horario || '') &&
+    Math.abs(Number(o.resultado || 0) - Number(newOp.resultado || 0)) < 0.01
   );
 }
 
+function buildSafeOp(op, contaId){
+  return {
+    user_id: user.id,
+    conta_id: contaId,
+    data: op.data,
+    ativo: String(op.ativo || '').toUpperCase(),
+    direcao: op.direcao,
+    quantidade: Number(op.quantidade || 1),
+    stop_loss: Number(op.stop_loss || 0),
+    take_profit: Number(op.take_profit || 0),
+    resultado: Number(op.resultado || 0),
+    setup: op.setup || null,
+    obs: (op.obs || '').slice(0, 500) || null,
+    horario: op.horario || null,
+    emocao: op.emocao || null,
+    qualidade: op.qualidade || null
+  };
+}
+
 async function importOps(){
-  const contaId=$('imp-conta').value;
-  if(!contaId||!parsedOps.length){toast('Selecione uma conta e um arquivo.','err');return;}
+  const contaId = $('imp-conta').value;
 
-  const toImport=parsedOps.filter(o=>!checkDup(o));
-  if(!toImport.length){toast('Todas as operações já existem no sistema.','err');return;}
+  if (!contaId || !parsedOps.length) {
+    toast('Selecione uma conta e um arquivo.', 'err');
+    return;
+  }
 
-  const btn=$('imp-salvar');
-  btn.textContent='Importando...';btn.disabled=true;
+  const toImport = parsedOps.filter(o => !checkDup(o));
 
-  let ok=0,fail=0,firstError=null;
-  const inserted=[];
+  if (!toImport.length) {
+    toast('Todas as operações já existem no sistema.', 'err');
+    return;
+  }
 
-  for(const op of toImport){
-    const safeOp=buildSafeOp(op,contaId);
-    try{
-      const {data,error}=await db.from('operacoes').insert(safeOp).select().single();
-      if(error){
-        console.error('Erro insert operação:',error,safeOp);
+  const btn = $('imp-salvar');
+  btn.textContent = 'Importando...';
+  btn.disabled = true;
+
+  let ok = 0;
+  let fail = 0;
+  let firstError = null;
+  const inserted = [];
+
+  for (const op of toImport) {
+    const safeOp = buildSafeOp(op, contaId);
+
+    try {
+      const { data, error } = await db
+        .from('operacoes')
+        .insert(safeOp)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Erro insert operação:', error, safeOp);
         fail++;
-        if(!firstError)firstError=error.message||JSON.stringify(error);
-      }else{
+        if (!firstError) firstError = error.message || JSON.stringify(error);
+      } else {
         ok++;
-        inserted.push(data||safeOp);
+        if (data) inserted.push(data);
       }
-    }catch(e){
-      console.error('Erro inesperado insert operação:',e,safeOp);
+    } catch (e) {
+      console.error('Erro inesperado insert operação:', e, safeOp);
       fail++;
-      if(!firstError)firstError=e.message||String(e);
+      if (!firstError) firstError = e.message || String(e);
     }
   }
 
-  if(inserted.length){
-    ops=(ops||[]).concat(inserted);
-  }else{
+  if (inserted.length) {
+    ops = (ops || []).concat(inserted);
+  } else {
     await loadAluno();
   }
 
-  ops.sort((a,b)=>{
-    const aa=`${a.data||''} ${a.horario||''}`;
-    const bb=`${b.data||''} ${b.horario||''}`;
-    return bb.localeCompare(aa);
+  ops.sort((a, b) => {
+    const da = `${a.data || ''} ${a.horario || ''}`;
+    const dbb = `${b.data || ''} ${b.horario || ''}`;
+    return dbb.localeCompare(da);
   });
 
   renderDash();
 
-  btn.textContent='Importar operações';btn.disabled=false;
-  const res=$('imp-result');
+  btn.textContent = 'Importar operações';
+  btn.disabled = false;
 
-  if(fail){
-    res.textContent=`✓ ${ok} operação(ões) importada(s) · ${fail} erro(s). Primeiro erro: ${firstError}`;
+  const res = $('imp-result');
+  if (res) {
+    res.textContent = fail
+      ? `✓ ${ok} operação(ões) importada(s) · ${fail} erro(s). Primeiro erro: ${firstError}`
+      : `✓ ${ok} operação(ões) importada(s). Depósitos, aportes, balance e ordens foram ignorados.`;
     show(res);
-    toast(`✓ ${ok} importada(s) · ${fail} erro(s)`,'err');
-  }else{
-    res.textContent=`✓ ${ok} operação(ões) importada(s) com sucesso. Depósitos, aportes, balance e ordens foram ignorados.`;
-    show(res);
-    toast(`${ok} operações importadas!`,'ok');
   }
 
-  if(ok>0){
-    parsedOps=[];
+  if (ok > 0) {
+    parsedOps = [];
     hide($('imp-preview'));
-    $('imp-salvar').style.display='none';
-    $('imp-fname').textContent='';
+    $('imp-salvar').style.display = 'none';
+    $('imp-fname').textContent = '';
+    toast(`${ok} operações importadas!`, 'ok');
+  }
+
+  if (fail) {
+    toast(`Importação parcial: ${ok} ok · ${fail} erro(s). Veja o console.`, 'err');
   }
 }
 

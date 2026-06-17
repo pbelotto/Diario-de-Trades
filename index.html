@@ -533,15 +533,9 @@ window.addEventListener('DOMContentLoaded',async()=>{
 });
 
 db.auth.onAuthStateChange(async(event,session)=>{
-  if(session){
-    if(event==='SIGNED_IN'||event==='TOKEN_REFRESHED'||!user){
-      user=session.user;
-      await loadApp();
-    }
-  } else {
-    user=null;
-    showAuth();
-  }
+  if(event==='SIGNED_OUT'){user=null;showAuth();return;}
+  if(event==='SIGNED_IN'&&session&&!$('app').classList.contains('hidden')){return;} // already loaded
+  if(session&&event==='SIGNED_IN'){user=session.user;await loadApp();}
 });
 
 // ── AUTH ──
@@ -738,8 +732,8 @@ function gauge(pct,color){
   const c=Math.max(0,Math.min(100,pct||0)),r=36,cx=50,cy=50;
   const a=(c/100)*180,rad=(a-180)*Math.PI/180;
   const x=cx+r*Math.cos(rad),y=cy+r*Math.sin(rad),lg=a>180?1:0;
-  return `<svg viewBox="0 0 100 55" width="76" height="42"><path d="M${cx-r},${cy} A${r},${r} 0 0,1 ${cx+r},${cy}" fill="none" stroke="#1e2330" stroke-width="8" stroke-linecap="round"/>${c>0?`<path d="M${cx-r},${cy} A${r},${r} 0 ${lg},1 ${x},${y}" fill="none" stroke="${color}" stroke-width="8" stroke-linecap="round"/>`:''}
-  </svg>`;
+  const arc=c>0?'<path d="M'+(cx-r)+','+cy+' A'+r+','+r+' 0 '+lg+',1 '+x.toFixed(2)+','+y.toFixed(2)+'" fill="none" stroke="'+color+'" stroke-width="8" stroke-linecap="round"/>':'';
+  return '<svg viewBox="0 0 100 55" width="76" height="42"><path d="M'+(cx-r)+','+cy+' A'+r+','+r+' 0 0,1 '+(cx+r)+','+cy+'" fill="none" stroke="#1e2330" stroke-width="8" stroke-linecap="round"/>'+arc+'</svg>';
 }
 
 // ── RENDER DASH ──
@@ -766,33 +760,39 @@ function renderDash(){
   const fNum=typeof fator==='number'?Math.min(fator/4*100,100):fator==='∞'?100:0;
 
   // metrics
-  $('d-metrics').innerHTML=`<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:.5rem;margin-bottom:.25rem">
-    <div class="met"><div class="ml">Net P&L</div><div class="mv ${totalF>=0?'pos':'neg'}">${fmt(totalF)}</div><div class="ms">período filtrado</div></div>
-    <div class="met" style="display:flex;flex-direction:column;align-items:center;padding:.6rem">
-      <div class="ml" style="align-self:flex-start">Trade win %</div>
-      ${gauge(taxa,'#22d08a')}
-      <div class="mv neu" style="font-size:15px;margin-top:-2px">${co.length?taxa+'%':'--'}</div>
-    </div>
-    <div class="met" style="display:flex;flex-direction:column;align-items:center;padding:.6rem">
-      <div class="ml" style="align-self:flex-start">Profit factor</div>
-      ${gauge(fNum,'#4f7fff')}
-      <div class="mv neu" style="font-size:15px;margin-top:-2px">${fator}</div>
-    </div>
-    <div class="met" style="display:flex;flex-direction:column;align-items:center;padding:.6rem">
-      <div class="ml" style="align-self:flex-start">Day win %</div>
-      ${gauge(dayPct,'#f0b429')}
-      <div class="mv neu" style="font-size:15px;margin-top:-2px">${dias.length?dayPct+'%':'--'}</div>
-    </div>
-    <div class="met">
-      <div class="ml">Avg win / loss</div>
-      <div style="margin:.4rem 0 .2rem">
-        <div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:3px"><span style="color:var(--gn)">+$${avgG.toFixed(0)}</span><span style="color:var(--ls)">-$${avgL.toFixed(0)}</span></div>
-        <div style="height:5px;border-radius:3px;overflow:hidden;background:var(--ls);display:flex"><div style="width:${wlBar}%;background:var(--gn)"></div></div>
-      </div>
-      <div class="ms">ganho médio vs perda média</div>
-    </div>
-    <div class="met"><div class="ml">Total consolidado</div><div class="mv ${totalAll>=0?'pos':'neg'}">${fmt(totalAll)}</div><div class="ms">todas as contas</div></div>
-  </div>`;
+  (function(){
+    const el=$('d-metrics');if(!el)return;
+    const row1='<div class="met" style="padding:.75rem"><div class="ml">Net P&L</div>'
+      +'<div class="mv '+(totalF>=0?'pos':'neg')+'">'+fmt(totalF)+'</div>'
+      +'<div class="ms">conta atual</div></div>';
+    const row2='<div class="met" style="padding:.75rem;display:flex;flex-direction:column;align-items:center">'
+      +'<div class="ml" style="align-self:flex-start">Trade win %</div>'
+      +gauge(taxa,'#22d08a')
+      +'<div class="mv neu" style="font-size:15px;margin-top:-2px">'+(co.length?taxa+'%':'--')+'</div></div>';
+    const row3='<div class="met" style="padding:.75rem;display:flex;flex-direction:column;align-items:center">'
+      +'<div class="ml" style="align-self:flex-start">Profit factor</div>'
+      +gauge(typeof fator==='number'?Math.min(fator/4*100,100):fator==='inf'?100:0,'#4f7fff')
+      +'<div class="mv neu" style="font-size:15px;margin-top:-2px">'+fator+'</div></div>';
+    const dw=(()=>{const dp=Math.round(dias.length?diasW/dias.length*100:0);
+      return '<div class="met" style="padding:.75rem;display:flex;flex-direction:column;align-items:center">'
+        +'<div class="ml" style="align-self:flex-start">Day win %</div>'
+        +gauge(dp,'#f0b429')
+        +'<div class="mv neu" style="font-size:15px;margin-top:-2px">'+(dias.length?dp+'%':'--')+'</div></div>';
+    })();
+    const row5='<div class="met" style="padding:.75rem"><div class="ml">Avg win / loss</div>'
+      +'<div style="margin:.4rem 0 .2rem">'
+      +'<div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:3px">'
+      +'<span style="color:var(--gn)">+$'+avgG.toFixed(0)+'</span>'
+      +'<span style="color:var(--ls)">-$'+avgL.toFixed(0)+'</span></div>'
+      +'<div style="height:5px;border-radius:3px;overflow:hidden;background:var(--ls);display:flex">'
+      +'<div style="width:'+wlBar+'%;background:var(--gn)"></div></div></div>'
+      +'<div class="ms">ganho médio vs perda média</div></div>';
+    const row6='<div class="met" style="padding:.75rem"><div class="ml">Total consolidado</div>'
+      +'<div class="mv '+(totalAll>=0?'pos':'neg')+'">'+fmt(totalAll)+'</div>'
+      +'<div class="ms">todas as contas</div></div>';
+    el.innerHTML='<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:.5rem;margin-bottom:.25rem">'
+      +row1+row2+row3+dw+row5+row6+'</div>';
+  })();
 
   // P&L badge
   const pc=totalF>=0?'var(--gn)':'var(--ls)';

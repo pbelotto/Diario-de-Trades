@@ -532,25 +532,56 @@ const ini=n=>(n||'?').split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
 function toast(m,t='ok'){const el=$('toast');el.textContent=m;el.className='show '+t;setTimeout(()=>el.className='',2500)}
 
 // ── FILTER ──
+function parseOpDateLocal(value){
+  if(!value)return null;
+  if(value instanceof Date&&!isNaN(value))return value;
+  let s=String(value).trim();
+  if(!s)return null;
+  s=s.replace(/\./g,'-');
+  if(/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}/.test(s))s=s.replace(' ','T');
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s)){
+    const[y,m,d]=s.split('-').map(Number);
+    return new Date(y,m-1,d,12,0,0);
+  }
+  const d=new Date(s);
+  return isNaN(d)?null:d;
+}
+function startOfDay(d){return new Date(d.getFullYear(),d.getMonth(),d.getDate(),0,0,0,0);}
+function endOfDay(d){return new Date(d.getFullYear(),d.getMonth(),d.getDate(),23,59,59,999);}
+function startOfWeekMonday(d){
+  const x=startOfDay(d);
+  const day=x.getDay();
+  const diff=(day===0?-6:1-day);
+  x.setDate(x.getDate()+diff);
+  return x;
+}
 function filteredOps(){
   if(!ops||!Array.isArray(ops))return[];
   const now=new Date();
-  const today=now.toISOString().slice(0,10);
-  const yr=now.getFullYear(),mo=now.getMonth();
-  let from=null,to=today;
-  if(activePeriod==='today'){from=today;}
-  else if(activePeriod==='week'){const d=new Date(now);d.setDate(d.getDate()-d.getDay());from=d.toISOString().slice(0,10);}
-  else if(activePeriod==='month'){from=`${yr}-${String(mo+1).padStart(2,'0')}-01`;}
-  else if(activePeriod==='30d'){const d=new Date(now);d.setDate(d.getDate()-30);from=d.toISOString().slice(0,10);}
-  else if(activePeriod==='lmonth'){const lm=mo===0?11:mo-1,ly=mo===0?yr-1:yr;from=`${ly}-${String(lm+1).padStart(2,'0')}-01`;to=`${ly}-${String(lm+1).padStart(2,'0')}-${new Date(yr,mo,0).getDate()}`;}
-  else if(activePeriod==='quarter'){const q=Math.floor(mo/3);from=`${yr}-${String(q*3+1).padStart(2,'0')}-01`;}
-  else if(activePeriod==='ytd'){from=`${yr}-01-01`;}
-  let res=ops;
-  if(activeContaFil!=='all')res=res.filter(o=>o.conta_id===activeContaFil);
-  if(from)res=res.filter(o=>o.data>=from&&o.data<=to);
-  return res;
+  let from=null,to=null;
+  if(activePeriod==='today'){from=startOfDay(now);to=endOfDay(now);}
+  else if(activePeriod==='week'){from=startOfWeekMonday(now);to=endOfDay(now);}
+  else if(activePeriod==='month'){from=new Date(now.getFullYear(),now.getMonth(),1,0,0,0,0);to=endOfDay(now);}
+  else if(activePeriod==='30d'){from=new Date(now-30*864e5);to=endOfDay(now);}
+  else if(activePeriod==='lmonth'){
+    const mo=now.getMonth(),yr=now.getFullYear();
+    const lm=mo===0?11:mo-1,ly=mo===0?yr-1:yr;
+    from=new Date(ly,lm,1,0,0,0,0);to=new Date(ly,lm+1,0,23,59,59,999);
+  }
+  else if(activePeriod==='quarter'){
+    const q=Math.floor(now.getMonth()/3);
+    from=new Date(now.getFullYear(),q*3,1,0,0,0,0);to=endOfDay(now);
+  }
+  else if(activePeriod==='ytd'){from=new Date(now.getFullYear(),0,1,0,0,0,0);to=endOfDay(now);}
+  // 'all' or anything else: no date filter
+  return ops.filter(o=>{
+    if(activeContaFil&&activeContaFil!=='all'&&String(o.conta_id)!==String(activeContaFil))return false;
+    if(!from&&!to)return true;
+    const d=parseOpDateLocal(o.data||o.data_abertura||o.created_at);
+    if(!d)return false;
+    return d>=from&&d<=to;
+  });
 }
-
 // ── NAV ──
 function navTo(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -1539,6 +1570,51 @@ function initImport(){
 
 let parsedOps=[];
 
+function showPreview(result){
+  const preview=$('imp-preview');
+  const countEl=$('imp-count');
+  const salvar=$('imp-salvar');
+  if(!preview)return;
+
+  // compute total
+  const total=result.reduce((s,o)=>s+o.resultado,0);
+  const isMT=(impFmt!=='tv');
+
+  if(countEl)countEl.textContent=result.length;
+
+  // add/update disclaimer
+  let disclaimer=document.getElementById('imp-disclaimer');
+  if(!disclaimer){
+    disclaimer=document.createElement('p');
+    disclaimer.id='imp-disclaimer';
+    disclaimer.style.cssText='font-size:11px;color:var(--mt);margin:.5rem 0;';
+    preview.insertBefore(disclaimer, preview.querySelector('.tw')||preview.firstChild);
+  }
+  const totalLiq='$'+total.toFixed(2);
+  disclaimer.innerHTML='Total líquido: <strong style="color:'+(total>=0?'var(--gn)':'var(--ls)')+'">'+totalLiq+'</strong>'
+    +(isMT?' &nbsp;|&nbsp; <span style="color:var(--mt)">Depósitos, aportes, créditos, ajustes e ordens canceladas foram ignorados.</span>':'');
+
+  // build table
+  const tw=preview.querySelector('.tw');
+  if(tw){
+    tw.innerHTML='<table class="tbl"><thead><tr><th>Data</th><th>Hor.</th><th>Ativo</th><th>Dir.</th><th>Qtd</th><th>Resultado</th></tr></thead><tbody>'
+      +result.slice(0,50).map(o=>'<tr>'
+        +'<td style="font-family:var(--mono);font-size:11px">'+o.data+'</td>'
+        +'<td style="font-size:11px;color:var(--mt)">'+(o.horario||'-')+'</td>'
+        +'<td><strong>'+o.ativo+'</strong></td>'
+        +'<td><span class="badge '+(o.direcao==='compra'?'bg':'bl')+'">'+o.direcao+'</span></td>'
+        +'<td>'+o.quantidade+'</td>'
+        +'<td style="font-family:var(--mono);color:'+(o.resultado>=0?'var(--gn)':'var(--ls)')+'">'+fmt(o.resultado)+'</td>'
+        +'</tr>').join('')
+      +(result.length>50?'<tr><td colspan="6" style="color:var(--mt);text-align:center;font-size:11px">... e mais '+(result.length-50)+' operações</td></tr>':'')
+      +'</tbody></table>';
+  }
+
+  show(preview);
+  if(salvar){salvar.style.display='';}
+  hide($('imp-result'));
+}
+
 function processFile(file){
   $('imp-fname').textContent=file.name;
   const reader=new FileReader();
@@ -1560,189 +1636,100 @@ function processFile(file){
   else reader.readAsText(file,'UTF-16LE');
 }
 
-function parseMT(html){
-  html=html.split(String.fromCharCode(0)).join('');
-  const parser=new DOMParser();
-  const doc=parser.parseFromString(html,'text/html');
-  const rows=Array.from(doc.querySelectorAll('tr'));
-  const ops=[];
+function parseMetaTraderHTML(htmlText){
+  htmlText=htmlText.split(String.fromCharCode(0)).join('');
+  const doc=new DOMParser().parseFromString(htmlText,'text/html');
+  const rows=[...doc.querySelectorAll('tr')].map(tr=>
+    [...tr.querySelectorAll('td,th')].map(td=>td.textContent.trim().replace(/\u00a0/g,' '))
+  );
+  const opsParsed=[];
+  let section='';
 
-  // tipos a ignorar — qualquer coisa que nao seja trade executado
-  const SKIP_TYPES=new Set(['balance','deposit','withdrawal','credit','bonus','correction','rebate','swap','dividend']);
-  // tipos de trade validos
-  const TRADE_TYPES=new Set(['buy','sell','buy stop','sell stop','buy limit','sell limit']);
+  const SKIP_TYPES=new Set(['balance','deposit','withdrawal','credit','bonus','correction',
+    'rebate','swap','dividend','ajuste','bônus']);
 
-  for(const row of rows){
-    const cells=Array.from(row.querySelectorAll('td')).map(td=>td.textContent.trim());
-    const n=cells.length;
-    if(n<11)continue;
+  function toNum(v){
+    if(v===undefined||v===null)return 0;
+    let s=String(v).trim().replace(/\s/g,'').replace(/,/g,'');
+    const n=parseFloat(s);return isNaN(n)?0:n;
+  }
+  function toISODate(dt){
+    if(!dt)return'';
+    const s=String(dt).trim().replace(/\./g,'-');
+    const datePart=s.split(' ')[0].split('T')[0];
+    return /^\d{4}-\d{2}-\d{2}$/.test(datePart)?datePart:'';
+  }
+  function toTime(dt){
+    if(!dt)return'';
+    const parts=String(dt).trim().split(' ');
+    return parts[1]?parts[1].slice(0,5):'';
+  }
 
-    // validar data na coluna 0
-    const c0=cells[0]||'';
-    if(c0.length<10||c0[4]!=='.'||c0[7]!=='.')continue;
+  for(const cells of rows){
+    const joined=cells.join(' ').toLowerCase();
 
+    if(joined.includes('posições')||joined.includes('positions')){section='posicoes';continue;}
+    if(joined.includes('ordens')||joined.includes('orders')){section='ordens';continue;}
+    if(joined.includes('transações')||joined.includes('deals')||joined.includes('transacoes')){section='transacoes';continue;}
+
+    // Only process Posições section
+    if(section!=='posicoes')continue;
+    if(cells.length<13)continue;
+
+    const abertura=cells[0]||'';
+    const position=cells[1]||'';
+    const ativo=(cells[2]||'').trim();
     const tipo=(cells[3]||'').toLowerCase().trim();
+    const volume=toNum(cells[4]);
+    const precoEntrada=toNum(cells[5]);
+    const sl=toNum(cells[6]);
+    const tp=toNum(cells[7]);
+    const fechamento=cells[8]||'';
+    const precoSaida=toNum(cells[9]);
+    const comissao=toNum(cells[10]);
+    const swap=toNum(cells[11]);
+    const lucro=toNum(cells[12]);
 
-    // pular qualquer linha que nao seja trade executado
-    if(!tipo||SKIP_TYPES.has(tipo))continue;
-    // pular ordens pendentes que nao foram executadas (sem ativo na col 2)
-    if(!cells[2]||cells[2]==='')continue;
-
-    const ativo=cells[2].trim().toUpperCase();
     if(!ativo)continue;
+    if(SKIP_TYPES.has(tipo))continue;
+    if(tipo!=='buy'&&tipo!=='sell')continue;
+    if(!fechamento||!toISODate(fechamento))continue;
 
-    let lucro=0,dateStr='',horarioFechado='',timePart=null;
+    const resultadoLiquido=+(lucro+comissao+swap).toFixed(2);
 
-    if(n===14){
-      // Secao "Posicoes" — 14 colunas: posicoes abertas ou historico de posicoes
-      // Ignorar: os dados reais de P&L estao na secao Negociacoes (15 cols)
-      continue;
-
-    }else if(n===15){
-      // Secao "Negociacoes" — 15 colunas
-      // [0]=tempo [1]=deal [2]=ativo [3]=tipo [4]=direcao(in/out) [5]=vol [6]=preco [7]=ordem [8]='' [9]=swap [10]=taxa [11]='' [12]=lucro [13]=saldo [14]=comentario
-      // IMPORTANTE: coluna [12] = lucro do deal, coluna [13] = SALDO ACUMULADO (nao usar!)
-      // Apenas processar linhas "out" (fechamento de posicao) para nao duplicar
-      const direcao=(cells[4]||'').toLowerCase();
-      // Pular abertura ('in') - usar so fechamento ('out', 'out by', etc)
-      if(direcao==='in'||direcao==='')continue;
-      const lucroStr=(cells[12]||'0').replace(/\s/g,'').replace(',','.');
-      lucro=parseFloat(lucroStr)||0;
-      horarioFechado=cells[0]; // fechamento usa a data desta linha
-      const rawDate=horarioFechado.slice(0,10);
-      dateStr=rawDate.split('.').join('-');
-      timePart=horarioFechado.length>=19?horarioFechado.slice(11,16):null;
-
-    }else if(n===11){
-      // Secao "Ordens" — 11 colunas (ordens, sem lucro real)
-      continue; // ignorar, nao tem lucro
-
-    }else{
-      // outros formatos: tentar extrair lucro do penultimo float nao-zero
-      const lastFloat=(cells[n-2]||cells[n-3]||'0').replace(/\s/g,'').replace(',','.');
-      lucro=parseFloat(lastFloat)||0;
-      horarioFechado=cells[8]||cells[0];
-      const rawDate=horarioFechado.slice(0,10);
-      dateStr=rawDate.split('.').join('-');
-      timePart=horarioFechado.length>=19?horarioFechado.slice(11,16):null;
-    }
-
-    if(!dateStr||dateStr.length!==10)continue;
-
-    // filtro extra: se lucro é zero e nao é uma operacao real, pular
-    // (deixar zeros passarem pois podem ser trades breakeven)
-
-    const tipoBase=tipo.replace(' stop','').replace(' limit','').trim();
-    ops.push({
-      data:dateStr,
-      ativo:ativo,
-      direcao:tipoBase==='buy'?'compra':'venda',
-      quantidade:parseFloat(cells[5]||cells[4])||0,
-      stop_loss:0,take_profit:0,
-      resultado:lucro,
-      horario:timePart,
+    opsParsed.push({
+      data:toISODate(fechamento),
+      ativo:ativo.toUpperCase(),
+      direcao:tipo==='buy'?'compra':'venda',
+      quantidade:volume||1,
+      stop_loss:sl||0,
+      take_profit:tp||0,
+      resultado:resultadoLiquido,
+      horario:toTime(fechamento),
       emocao:null,qualidade:null,
-      setup:'Importado MT',
-      obs:'Aberto: '+cells[0]
+      setup:'Importado MetaTrader',
+      obs:'MT Pos '+position+' | Ab: '+abertura+' | Fe: '+fechamento+' | E: '+precoEntrada+' | S: '+precoSaida+' | Lucro: '+lucro.toFixed(2)+' | Com: '+comissao.toFixed(2)+' | Swap: '+swap.toFixed(2)
     });
   }
 
-  if(!ops.length)throw new Error('Nenhuma operacao encontrada. Verifique se o arquivo e um relatorio detalhado do MetaTrader.');
-  return ops;
-}
-
-function parseTradovate(csv){
-  const lines=csv.trim().split('\n');
-  if(lines.length<2)throw new Error('Arquivo CSV vazio ou invalido.');
-  const header=lines[0].split(',');
-  const idx={
-    symbol:header.indexOf('symbol'),
-    qty:header.indexOf('qty'),
-    buyPrice:header.indexOf('buyPrice'),
-    pnl:header.indexOf('pnl'),
-    buyFillId:header.indexOf('buyFillId'),
-    soldTimestamp:header.indexOf('soldTimestamp'),
-    boughtTimestamp:header.indexOf('boughtTimestamp'),
-  };
-  if(idx.symbol<0||idx.pnl<0)throw new Error('Formato Tradovate nao reconhecido.');
-
-  const groups={};
-  for(let i=1;i<lines.length;i++){
-    const cols=lines[i].replace('\r','').split(',');
-    if(cols.length<8)continue;
-    const buyId=(cols[idx.buyFillId]||'').trim();
-    if(!buyId)continue;
-    if(!groups[buyId])groups[buyId]={
-      symbol:(cols[idx.symbol]||'').trim(),
-      qty:0,pnl:0,
-      buyPrice:parseFloat(cols[idx.buyPrice])||0,
-      boughtTimestamp:(cols[idx.boughtTimestamp]||'').trim(),
-      soldTimestamp:(cols[idx.soldTimestamp]||'').trim(),
-    };
-    const raw=(cols[idx.pnl]||'0');
-    const isNeg=raw.indexOf('(')>=0;
-    const pnlNum=parseFloat(raw.replace('$','').replace('(','').replace(')','').trim())||0;
-    const pnlVal=isNeg?-pnlNum:pnlNum;
-    groups[buyId].pnl+=pnlVal;
-    groups[buyId].qty+=parseInt(cols[idx.qty])||1;
-    if((cols[idx.soldTimestamp]||'')>(groups[buyId].soldTimestamp||''))
-      groups[buyId].soldTimestamp=(cols[idx.soldTimestamp]||'').trim();
+  if(!opsParsed.length){
+    throw new Error('Nenhuma operação fechada encontrada na seção Posições. Verifique se o relatório MetaTrader contém histórico de posições fechadas.');
   }
-
-  const ops=Object.values(groups).map(g=>{
-    const ts=g.soldTimestamp||g.boughtTimestamp||'';
-    let dateStr='';
-    const parts=ts.split(' ')[0].split('/');
-    if(parts.length===3)dateStr=parts[2]+'-'+parts[0]+'-'+parts[1];
-    const sym=(g.symbol||'').replace(/M[0-9]$/,'').replace(/[A-Z]6$/,'');
-    const tvTime=(g.soldTimestamp||'').split(' ')[1]||null;
-    const tvTimeFmt=tvTime?tvTime.slice(0,5):null;
-    return{
-      data:dateStr,
-      ativo:sym||g.symbol,
-      direcao:'compra',
-      quantidade:g.qty,
-      stop_loss:0,take_profit:0,
-      resultado:parseFloat(g.pnl.toFixed(2)),
-      horario:tvTimeFmt,
-      emocao:null,qualidade:null,
-      setup:'Importado Tradovate',
-      obs:'Entrada: '+(g.boughtTimestamp||'')
-    };
-  }).filter(o=>o.data);
-
-  if(!ops.length)throw new Error('Nenhuma operacao encontrada no arquivo Tradovate.');
-  return ops;
+  return opsParsed.filter(o=>o.data&&o.ativo&&Number.isFinite(o.resultado));
 }
 
-function showPreview(ops){
-  const prev=$('imp-preview');
-  if(!prev)return;
-  show(prev);
-  $('imp-count').textContent=ops.length;
+// alias for backward compat
+function parseMT(html){return parseMetaTraderHTML(html);}
 
-  const dups=ops.filter(o=>checkDup(o));
-  if(dups.length){
-    const warn=$('imp-warn');
-    warn.textContent=`⚠ ${dups.length} operação(ões) já existem no sistema (mesma data, ativo e resultado) e serão ignoradas na importação.`;
-    show(warn);
-  }
-
-  $('imp-tbody').innerHTML=ops.map(o=>`<tr>
-    <td style="font-family:var(--mono);font-size:12px">${o.data}</td>
-    <td><strong>${o.ativo}</strong></td>
-    <td><span class="badge ${o.direcao==='compra'?'bg':'bl'}">${o.direcao}</span></td>
-    <td>${o.quantidade}</td>
-    <td style="font-size:12px;color:var(--ls)">${o.stop_loss?o.stop_loss:'-'}</td>
-    <td style="font-size:12px;color:var(--gn)">${o.take_profit?o.take_profit:'-'}</td>
-    <td style="font-family:var(--mono);font-weight:500;color:${o.resultado>=0?'var(--gn)':'var(--ls)'}">${fmt(o.resultado)}</td>
-  </tr>`).join('');
-
-  const btn=$('imp-salvar');if(btn)btn.style.display='';
-}
 
 function checkDup(newOp){
-  return ops.some(o=>o.data===newOp.data&&o.ativo===newOp.ativo&&Math.abs(o.resultado-newOp.resultado)<0.01);
+  return ops.some(o=>
+    String(o.data)===String(newOp.data)&&
+    String(o.ativo)===String(newOp.ativo)&&
+    String(o.direcao)===String(newOp.direcao)&&
+    String(o.horario||'')===String(newOp.horario||'')&&
+    Math.abs(Number(o.resultado||0)-Number(newOp.resultado||0))<0.01
+  );
 }
 
 async function importOps(){
@@ -1750,7 +1737,7 @@ async function importOps(){
   if(!contaId||!parsedOps.length){toast('Selecione uma conta e um arquivo.','err');return;}
 
   const toImport=parsedOps.filter(o=>!checkDup(o));
-  if(!toImport.length){toast('Todas as operações já existem no sistema.','err');return;}
+  if(!toImport.length){toast('Todas as operações já existem no sistema. Nenhuma duplicata importada.','err');return;}
 
   const btn=$('imp-salvar');
   btn.textContent='Importando...';btn.disabled=true;
@@ -1760,22 +1747,33 @@ async function importOps(){
     const {error}=await db.from('operacoes').insert({
       user_id:user.id,conta_id:contaId,...op
     });
-    if(error)fail++;
-    else{ops.push({...op,id:Date.now()+Math.random(),conta_id:contaId,user_id:user.id});ok++;}
+    if(error){console.error('insert error',error);fail++;}
+    else{ops.push({...op,id:Date.now()+Math.random()+'',conta_id:contaId,user_id:user.id});ok++;}
   }
-  ops.sort((a,b)=>a.data.localeCompare(b.data));
+
+  // Sort by date + horario
+  ops.sort((a,b)=>{
+    const da=String(a.data||'')+(a.horario||'');
+    const db2=String(b.data||'')+(b.horario||'');
+    return da.localeCompare(db2);
+  });
 
   btn.textContent='Importar operações';btn.disabled=false;
   const res=$('imp-result');
-  res.textContent=`✓ ${ok} operação(ões) importada(s) com sucesso${fail?` · ${fail} erro(s)`:''}.`;
-  show(res);
+  if(res){
+    res.innerHTML='<span style="color:var(--gn)">✓ '+ok+' operação(ões) importada(s)'+(fail?' &middot; <span style="color:var(--ls)">'+fail+' erro(s)</span>':'')+'</span>';
+    show(res);
+  }
 
   if(ok>0){
     parsedOps=[];
     hide($('imp-preview'));
-    $('imp-salvar').style.display='none';
-    $('imp-fname').textContent='';
-    toast(`${ok} operações importadas!`,'ok');
+    const sb=$('imp-salvar');if(sb)sb.style.display='none';
+    const fn=$('imp-fname');if(fn)fn.textContent='';
+    toast(ok+' operações importadas com sucesso!','ok');
+    // Update dashboard immediately
+    buildContaMenu();
+    renderDash();
   }
 }
 

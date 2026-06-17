@@ -731,6 +731,14 @@ $('btn-salvar').onclick=async()=>{
 
 // ── CHARTS ──
 function destroyCharts(){
+  // destroy by canvas ID to catch any orphaned charts
+  ['c-pnl','c-donut','c-daily','c-dual','c-time'].forEach(id=>{
+    const canvas=document.getElementById(id);
+    if(canvas){
+      const existing=Chart.getChart(canvas);
+      if(existing)try{existing.destroy()}catch(e){}
+    }
+  });
   [cPnl,cDonut,cBar,cSetup].forEach(c=>{try{if(c)c.destroy()}catch(e){}});
   cPnl=cDonut=cBar=cSetup=null;
 }

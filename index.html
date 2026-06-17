@@ -1755,7 +1755,11 @@ async function importOps(){
     const {error}=await db.from('operacoes').insert({
       user_id:user.id,conta_id:contaId,...op
     });
-    if(error){console.error('insert error',error);fail++;}
+    if(error){
+      if(fail===0)toast('Erro: '+JSON.stringify(error.message),'err');
+      console.error('insert error',error.message,error.details,error.hint,'op:',op);
+      fail++;
+    }
     else{ops.push({...op,id:Date.now()+Math.random()+'',conta_id:contaId,user_id:user.id});ok++;}
   }
 

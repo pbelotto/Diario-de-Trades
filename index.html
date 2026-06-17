@@ -772,16 +772,21 @@ function renderDash(){
 
   // --- EMPTY STATE ---
   const dmEl=$('d-metrics');
+  // helper: hide/show all chart .cc containers
+  const allChartIds=['c-pnl','c-donut','c-daily','c-dual','c-time'];
+  const setChartsVisible=v=>allChartIds.forEach(id=>{
+    const el=document.getElementById(id);
+    const cc=el&&el.closest('.cc');
+    if(cc){cc.style.visibility=v?'':'hidden';cc.style.opacity=v?'':'0';}
+  });
+
   if(!co.length){
+    setChartsVisible(false);
     if(dmEl)dmEl.innerHTML='<div class="empty" style="padding:2rem;text-align:center">'
       +'<p style="font-size:15px;color:var(--tx);margin-bottom:.5rem">Nenhuma operação encontrada</p>'
       +'<p style="font-size:12px;color:var(--mt)">'+periodoNome+' &middot; '+contaNome+'</p>'
       +'<p style="font-size:11px;color:var(--mt);margin-top:.5rem">Selecione "Todo o per&iacute;odo" ou verifique se h&aacute; opera&ccedil;&otilde;es nesta conta.</p>'
       +'</div>';
-    ['c-donut','c-pnl','c-daily','c-dual','c-time'].forEach(id=>{
-      const c=document.getElementById(id);
-      if(c){c.getContext('2d').clearRect(0,0,c.width,c.height);}
-    });
     if($('d-pct'))$('d-pct').textContent='0%';
     if($('d-g'))$('d-g').textContent='0 ops';
     if($('d-l'))$('d-l').textContent='0 ops';
@@ -790,6 +795,7 @@ function renderDash(){
     const dops=$('d-ops');if(dops)dops.innerHTML='<div class="empty">Sem operações no período.</div>';
     return;
   }
+  setChartsVisible(true);
 
   // --- METRICS ---
   const sorted=co.slice().sort((a,b)=>a.data.localeCompare(b.data));

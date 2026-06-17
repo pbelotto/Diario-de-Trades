@@ -452,11 +452,12 @@ const SB_KEY='sb_publishable_3ywo2E1127DeEQnCdVqU_w_9pqN_GT0';
 const PROF_EMAIL='paulo.belotto@gmail.com';
 
 const {createClient}=supabase;
-const db=createClient(SB_URL,SB_KEY);
+const db=createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storageKey:'diario-trades-auth'}});
 
 // ── STATE ──
 let user=null,profile=null,contas=[],ops=[],allUsers=[];
 let activePeriod='month',activeContaFil='all';
+ops=null; // null = not loaded yet, [] = loaded but empty
 let cPnl=null,cDonut=null,cBar=null,cSetup=null;
 
 // ── UTILS ──
@@ -470,6 +471,7 @@ function toast(m,t='ok'){const el=$('toast');el.textContent=m;el.className='show
 
 // ── FILTER ──
 function filteredOps(){
+  if(!ops||!Array.isArray(ops))return[];
   const now=new Date();
   const today=now.toISOString().slice(0,10);
   const yr=now.getFullYear(),mo=now.getMonth();
@@ -492,11 +494,11 @@ function navTo(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   const pg=$(id);if(pg)pg.classList.add('active');
   document.querySelectorAll('.ni').forEach(n=>n.classList.toggle('active',n.dataset.page===id));
-  if(id==='pg-dash')renderDash();
+  if(id==='pg-dash'){if(ops!==null)renderDash();}
   if(id==='pg-hist')renderHist();
-  if(id==='pg-pg'){if(!allUsers.length)loadProf().then(renderPG);else renderPG();}
-  if(id==='pg-pa'){if(!allUsers.length)loadProf().then(renderPA);else renderPA();}
-  if(id==='pg-po'){if(!allUsers.length)loadProf().then(renderPO);else renderPO();}
+  if(id==='pg-pg'){if(allUsers.length)renderPG();else loadProf().then(renderPG).catch(console.error);}
+  if(id==='pg-pa'){if(allUsers.length)renderPA();else loadProf().then(renderPA).catch(console.error);}
+  if(id==='pg-po'){if(allUsers.length)renderPO();else loadProf().then(renderPO).catch(console.error);}
   if(id==='pg-diag')renderDiagAluno();
   if(id==='pg-pdiag')initPDiag();
 }
@@ -521,21 +523,23 @@ function buildNav(role){
 }
 
 // ── INIT ──
+let appLoaded=false;
+
 window.addEventListener('DOMContentLoaded',async()=>{
-  const safe=setTimeout(()=>{hide($('loading'));showAuth();},8000);
+  const safe=setTimeout(()=>{hide($('loading'));showAuth();},10000);
   try{
-    const res=await Promise.race([db.auth.getSession(),new Promise((_,r)=>setTimeout(()=>r('timeout'),6000))]);
+    const {data:{session}}=await db.auth.getSession();
     clearTimeout(safe);
-    if(res&&res.data&&res.data.session){user=res.data.session.user;await loadApp();}
+    if(session){user=session.user;appLoaded=true;await loadApp();}
     else showAuth();
   }catch(e){clearTimeout(safe);showAuth();}
   hide($('loading'));
 });
 
 db.auth.onAuthStateChange(async(event,session)=>{
-  if(event==='SIGNED_OUT'){user=null;showAuth();return;}
-  if(event==='SIGNED_IN'&&session&&!$('app').classList.contains('hidden')){return;} // already loaded
-  if(session&&event==='SIGNED_IN'){user=session.user;await loadApp();}
+  if(event==='SIGNED_OUT'){user=null;appLoaded=false;hide($('app'));showAuth();return;}
+  if(event==='SIGNED_IN'&&session&&!appLoaded){user=session.user;appLoaded=true;hide($('loading'));await loadApp();}
+  if(event==='TOKEN_REFRESHED'&&session){user=session.user;}
 });
 
 // ── AUTH ──
@@ -581,24 +585,29 @@ $('btn-logout').onclick=async()=>{
 
 // ── LOAD APP ──
 async function loadApp(){
-  hide($('sa'));show($('app'));
-  const nome=user.user_metadata?.nome||user.email.split('@')[0];
+  hide($('sa'));hide($('loading'));show($('app'));
+  const nome=(user.user_metadata&&user.user_metadata.nome)||user.email.split('@')[0];
   const isProf=user.email===PROF_EMAIL;
+  // set local profile immediately so UI renders fast
   profile={id:user.id,nome,email:user.email,role:isProf?'professor':'aluno'};
-  try{
-    const {data:p}=await Promise.race([
-      db.from('profiles').select('*').eq('id',user.id).single(),
-      new Promise((_,r)=>setTimeout(()=>r('timeout'),8000))
-    ]);
-    if(p)profile=p;
-    else await db.from('profiles').upsert({id:user.id,nome,email:user.email,role:isProf?'professor':'aluno'},{onConflict:'id'});
-  }catch(e){console.warn('profile fetch timeout, using local')}
   $('uav').textContent=ini(profile.nome);
   $('unm').textContent=profile.nome;
   $('uem').textContent=profile.email;
   buildNav(profile.role);
-  if(profile.role==='professor'){await loadProf();navTo('pg-pg');}
-  else{await loadAluno();navTo('pg-dash');}
+  // navigate first, load data in background
+  if(isProf){
+    navTo('pg-pg');
+    loadProf().then(renderPG).catch(e=>console.error('loadProf:',e));
+  } else {
+    navTo('pg-dash');
+    loadAluno().then(()=>{
+      // try to get real profile role from DB (non-blocking)
+      db.from('profiles').select('role').eq('id',user.id).single()
+        .then(({data:p})=>{if(p&&p.role!==profile.role){profile.role=p.role;buildNav(profile.role);}})
+        .catch(()=>{});
+      renderDash();
+    }).catch(e=>console.error('loadAluno:',e));
+  }
 }
 
 // ══ ALUNO ══
@@ -608,11 +617,11 @@ async function loadAluno(){
       db.from('contas').select('*').eq('user_id',user.id).order('created_at'),
       db.from('operacoes').select('*').eq('user_id',user.id).order('data',{ascending:true})
     ]);
-    contas=c||[];
-    ops=o||[];
+    contas=Array.isArray(c)?c:[];
+    ops=Array.isArray(o)?o:[];
   }catch(e){
     console.warn('loadAluno error:',e);
-    contas=[];ops=[];
+    contas=contas||[];ops=ops||[];
   }
   fillOpConta();
   buildPeriodMenu();

@@ -1643,18 +1643,17 @@ function parseMetaTraderHTML(htmlText){
     [...tr.querySelectorAll('td,th')].map(td=>td.textContent.trim().replace(/\u00a0/g,' '))
   );
   const opsParsed=[];
-  let section='';
-
-  const SKIP_TYPES=new Set(['balance','deposit','withdrawal','credit','bonus','correction',
-    'rebate','swap','dividend','ajuste','bônus']);
+  let inPosicoes=false;
 
   function toNum(v){
-    if(v===undefined||v===null)return 0;
-    let s=String(v).trim().replace(/\s/g,'').replace(/,/g,'');
-    const n=parseFloat(s);return isNaN(n)?0:n;
+    if(!v&&v!==0)return 0;
+    const s=String(v).replace(/[^\d.\-]/g,'');
+    const n=parseFloat(s);
+    return isNaN(n)?0:n;
   }
   function toISODate(dt){
     if(!dt)return'';
+    // format: 2026.06.17 06:13:31
     const s=String(dt).trim().replace(/\./g,'-');
     const datePart=s.split(' ')[0].split('T')[0];
     return /^\d{4}-\d{2}-\d{2}$/.test(datePart)?datePart:'';
@@ -1666,36 +1665,46 @@ function parseMetaTraderHTML(htmlText){
   }
 
   for(const cells of rows){
-    const joined=cells.join(' ').toLowerCase();
+    const col0=(cells[0]||'').toLowerCase();
 
-    if(joined.includes('posições')||joined.includes('positions')){section='posicoes';continue;}
-    if(joined.includes('ordens')||joined.includes('orders')){section='ordens';continue;}
-    if(joined.includes('transações')||joined.includes('deals')||joined.includes('transacoes')){section='transacoes';continue;}
+    // Detect section start/end
+    if(cells.length===1){
+      const t=cells[0].toLowerCase();
+      if(t.includes('posições')||t.includes('posicoes')||t==='positions'){
+        inPosicoes=true;continue;
+      }
+      if(t.includes('ordens')||t.includes('orders')||
+         t.includes('transações')||t.includes('transacoes')||t.includes('deals')){
+        inPosicoes=false;continue;
+      }
+    }
 
-    // Only process Posições section
-    if(section!=='posicoes')continue;
-    if(cells.length<13)continue;
+    if(!inPosicoes)continue;
 
-    const abertura=cells[0]||'';
-    const position=cells[1]||'';
+    // Data rows have exactly 14 columns
+    // [0]=abertura [1]=positionId [2]=ativo [3]=tipo [4]=empty
+    // [5]=volume [6]=precoEntrada [7]=SL [8]=TP
+    // [9]=fechamento [10]=precoSaida [11]=comissao [12]=swap [13]=lucro
+    if(cells.length!==14)continue;
+
     const ativo=(cells[2]||'').trim();
     const tipo=(cells[3]||'').toLowerCase().trim();
-    const volume=toNum(cells[4]);
-    const precoEntrada=toNum(cells[5]);
-    const sl=toNum(cells[6]);
-    const tp=toNum(cells[7]);
-    const fechamento=cells[8]||'';
-    const precoSaida=toNum(cells[9]);
-    const comissao=toNum(cells[10]);
-    const swap=toNum(cells[11]);
-    const lucro=toNum(cells[12]);
+    const fechamento=(cells[9]||'').trim();
+    const lucro=toNum(cells[13]);
+    const comissao=toNum(cells[11]);
+    const swap=toNum(cells[12]);
+    const volume=toNum(cells[5]);
+    const sl=toNum(cells[7]);
+    const tp=toNum(cells[8]);
+    const abertura=(cells[0]||'').trim();
+    const position=(cells[1]||'').trim();
 
-    if(!ativo)continue;
-    if(SKIP_TYPES.has(tipo))continue;
+    // Skip non-trades
+    if(!ativo||!tipo)continue;
     if(tipo!=='buy'&&tipo!=='sell')continue;
     if(!fechamento||!toISODate(fechamento))continue;
 
-    const resultadoLiquido=+(lucro+comissao+swap).toFixed(2);
+    const resultado=+(lucro+comissao+swap).toFixed(2);
 
     opsParsed.push({
       data:toISODate(fechamento),
@@ -1704,20 +1713,19 @@ function parseMetaTraderHTML(htmlText){
       quantidade:volume||1,
       stop_loss:sl||0,
       take_profit:tp||0,
-      resultado:resultadoLiquido,
+      resultado,
       horario:toTime(fechamento),
       emocao:null,qualidade:null,
       setup:'Importado MetaTrader',
-      obs:'MT Pos '+position+' | Ab: '+abertura+' | Fe: '+fechamento+' | E: '+precoEntrada+' | S: '+precoSaida+' | Lucro: '+lucro.toFixed(2)+' | Com: '+comissao.toFixed(2)+' | Swap: '+swap.toFixed(2)
+      obs:'Pos '+position+' | Abertura: '+abertura+' | Lucro: '+lucro.toFixed(2)+' | Com: '+comissao.toFixed(2)+' | Swap: '+swap.toFixed(2)
     });
   }
 
   if(!opsParsed.length){
-    throw new Error('Nenhuma operação fechada encontrada na seção Posições. Verifique se o relatório MetaTrader contém histórico de posições fechadas.');
+    throw new Error('Nenhuma operação fechada encontrada. Verifique se o arquivo exportado pelo MetaTrader contém a seção "Posições" com histórico fechado.');
   }
   return opsParsed.filter(o=>o.data&&o.ativo&&Number.isFinite(o.resultado));
 }
-
 // alias for backward compat
 function parseMT(html){return parseMetaTraderHTML(html);}
 

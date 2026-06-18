@@ -3,140 +3,175 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Radar do Trader — Clube do Gain</title>
+<title>Radar do Trader</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{--bg:#0d1117;--sf:#131922;--sf2:#1a2232;--bd:#1e2a3a;--bd2:#2a3a4f;--tx:#e8eaf0;--mt:#6b7fa3;--ac:#4f7fff;--gn:#22d08a;--ls:#f05252;--wn:#f0b429;--mono:'JetBrains Mono',monospace}
 body{background:var(--bg);color:var(--tx);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh}
-.hero{text-align:center;padding:4rem 1.5rem 3rem;background:linear-gradient(180deg,#0a0f1a 0%,var(--bg) 100%)}
-.hero-badge{display:inline-block;background:#4f7fff22;color:var(--ac);border:1px solid var(--ac);border-radius:20px;padding:.3rem 1rem;font-size:12px;font-weight:600;letter-spacing:.08em;margin-bottom:1.25rem}
-.hero h1{font-size:clamp(2rem,5vw,3.2rem);font-weight:800;letter-spacing:-.02em;margin-bottom:.75rem;line-height:1.15}
+.hero{text-align:center;padding:4rem 1.5rem 3rem;background:linear-gradient(180deg,#0a0f1a,var(--bg))}
+.badge{display:inline-block;background:#4f7fff22;color:var(--ac);border:1px solid var(--ac);border-radius:20px;padding:.3rem 1rem;font-size:12px;font-weight:600;letter-spacing:.08em;margin-bottom:1.25rem}
+.hero h1{font-size:clamp(2rem,5vw,3.2rem);font-weight:800;letter-spacing:-.02em;margin-bottom:.75rem}
 .hero h1 span{background:linear-gradient(135deg,var(--ac),var(--gn));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .hero p{font-size:1.1rem;color:var(--mt);max-width:540px;margin:0 auto 2rem;line-height:1.6}
 .hero-stats{display:flex;justify-content:center;gap:2.5rem;flex-wrap:wrap}
-.hero-stat strong{display:block;font-size:1.5rem;font-weight:700;color:var(--tx)}
+.hero-stat strong{display:block;font-size:1.5rem;font-weight:700}
 .hero-stat small{font-size:12px;color:var(--mt)}
-.form-section{max-width:620px;margin:0 auto;padding:1.5rem}
+.wrap{max-width:620px;margin:0 auto;padding:1.5rem}
 .card{background:var(--sf2);border:1px solid var(--bd2);border-radius:12px;padding:1.75rem;margin-bottom:1.25rem}
-.card h2{font-size:1rem;font-weight:600;margin-bottom:1.25rem;color:var(--tx)}
 label{display:block;font-size:12px;color:var(--mt);margin-bottom:.35rem;font-weight:500;letter-spacing:.04em;text-transform:uppercase}
 input,select{width:100%;background:#0d1117;border:1px solid var(--bd2);border-radius:8px;color:var(--tx);padding:.65rem .9rem;font-size:14px;margin-bottom:1rem;outline:none;transition:border .2s}
 input:focus,select:focus{border-color:var(--ac)}
 select option{background:#0d1117}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
-.upload-zone{border:2px dashed var(--bd2);border-radius:10px;padding:2rem;text-align:center;cursor:pointer;transition:.2s;margin-bottom:.75rem}
+.upload-zone{border:2px dashed var(--bd2);border-radius:10px;padding:2rem;text-align:center;cursor:pointer;transition:.2s;margin-bottom:.5rem}
 .upload-zone:hover,.upload-zone.over{border-color:var(--ac);background:#4f7fff0a}
 .upload-zone input{display:none}
-.upload-icon{font-size:2rem;margin-bottom:.5rem}
-.upload-zone p{font-size:13px;color:var(--mt)}
-.upload-zone strong{color:var(--ac)}
-#fname{font-size:13px;color:var(--gn);margin-top:.5rem;min-height:1.2em}
+#fname{font-size:13px;color:var(--gn);margin:.4rem 0;min-height:1.2em}
 .btn{width:100%;padding:.9rem;border-radius:10px;border:none;font-size:15px;font-weight:600;cursor:pointer;transition:.2s}
 .btn-p{background:linear-gradient(135deg,#4f7fff,#22d08a);color:#fff}
 .btn-p:hover{opacity:.9;transform:translateY(-1px)}
 .btn-p:disabled{opacity:.5;cursor:not-allowed;transform:none}
 .privacy{font-size:11px;color:var(--mt);text-align:center;margin-top:.75rem;line-height:1.5}
 #loading{display:none;text-align:center;padding:3rem}
-.spinner{width:44px;height:44px;border:3px solid var(--bd2);border-top-color:var(--ac);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 1rem}
+.spin{width:44px;height:44px;border:3px solid var(--bd2);border-top-color:var(--ac);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 1rem}
 @keyframes spin{to{transform:rotate(360deg)}}
-#result{display:none;max-width:620px;margin:0 auto;padding:0 1.5rem 3rem}
-.score-card{background:var(--sf2);border:1px solid var(--bd2);border-radius:12px;padding:2rem;text-align:center;margin-bottom:1rem}
+#result{display:none;max-width:620px;margin:0 auto;padding:0 1.5rem 4rem}
+
+/* Score */
+.score-card{background:var(--sf2);border:1px solid var(--bd2);border-radius:12px;padding:2rem;text-align:center;margin-bottom:1.25rem}
+.score-top{font-size:11px;color:var(--mt);text-transform:uppercase;letter-spacing:.1em;margin-bottom:.5rem}
 .score-num{font-size:6rem;font-weight:800;font-family:var(--mono);line-height:1}
-.score-badge{display:inline-block;padding:.35rem 1.25rem;border-radius:20px;font-size:13px;font-weight:600;margin-top:.5rem}
-.score-bar-wrap{background:var(--bd2);border-radius:20px;height:8px;margin:1.25rem 0 .5rem;overflow:hidden}
+.score-nivel{font-size:1rem;font-weight:600;margin:.5rem 0}
+.score-bdg{display:inline-block;padding:.3rem 1.25rem;border-radius:20px;font-size:12px;font-weight:600;margin-top:.25rem}
+.score-bar-wrap{background:var(--bd2);border-radius:20px;height:8px;margin:1.25rem 0 .4rem;overflow:hidden}
 .score-bar{height:8px;border-radius:20px;width:0;transition:width 1.2s ease}
-.diag-frase{font-size:15px;line-height:1.65;font-style:italic;color:var(--tx);background:#4f7fff0d;border-left:3px solid var(--ac);padding:.9rem 1.1rem;border-radius:0 8px 8px 0;margin-bottom:1.25rem}
-.section-title{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--mt);margin-bottom:.75rem}
-.razao{display:flex;gap:.6rem;align-items:flex-start;margin-bottom:.5rem;font-size:13px;line-height:1.5}
-.razao-icon{color:var(--ls);flex-shrink:0;margin-top:1px}
-.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.65rem;margin-bottom:1rem}
-@media(max-width:480px){.stats-grid{grid-template-columns:1fr 1fr}.g2{grid-template-columns:1fr}}
-.stat-box{background:var(--sf);border:1px solid var(--bd);border-radius:8px;padding:.75rem;text-align:center}
-.stat-val{font-family:var(--mono);font-size:1.15rem;font-weight:700;color:var(--tx)}
-.stat-lbl{font-size:10px;color:var(--mt);margin-top:2px}
-.premium{background:linear-gradient(135deg,#1a2535,#0f1923);border:1px solid var(--ac);border-radius:12px;padding:1.75rem;text-align:center;margin-bottom:1.25rem}
-.premium h3{font-size:1.1rem;margin-bottom:.5rem}
-.premium p{font-size:13px;color:var(--mt);margin-bottom:1.25rem;line-height:1.6}
-.blur-prev{filter:blur(4px);pointer-events:none;opacity:.5;font-size:13px;color:var(--mt);background:var(--sf2);border-radius:8px;padding:.75rem;margin-bottom:1rem;line-height:1.8}
-.btn-gain{background:linear-gradient(135deg,var(--ac),var(--gn));color:#fff;border:none;padding:.85rem 2.5rem;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;transition:.2s}
-.btn-gain:hover{opacity:.9;transform:translateY(-1px)}
-.sala-card{background:linear-gradient(135deg,#1a2535,#0f1923);border:1px solid #4f7fff44;border-radius:12px;padding:1.5rem;display:flex;align-items:center;gap:1.25rem;flex-wrap:wrap}
-.sala-txt{flex:1;min-width:200px}
-.sala-txt h4{font-size:14px;font-weight:600;margin-bottom:.3rem}
-.sala-txt p{font-size:12px;color:var(--mt)}
+.score-range{font-size:11px;color:var(--mt)}
+
+/* Headline */
+.headline-card{background:#4f7fff0d;border:1px solid #4f7fff33;border-radius:12px;padding:1.25rem 1.5rem;margin-bottom:1.25rem}
+.headline-card p{font-size:15px;line-height:1.7;font-style:italic;color:var(--tx)}
+
+/* Padrão */
+.padrao-card{background:var(--sf2);border:1px solid var(--gn)44;border-radius:12px;padding:1.5rem;margin-bottom:1.25rem}
+.padrao-tag{display:inline-flex;align-items:center;gap:.4rem;background:#22d08a15;color:var(--gn);border:1px solid var(--gn)44;border-radius:6px;padding:.25rem .75rem;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:.85rem}
+.padrao-texto{font-size:14px;line-height:1.65;color:var(--tx);margin-bottom:.75rem}
+.padrao-impacto{background:#0d1117;border-left:3px solid var(--ac);border-radius:0 6px 6px 0;padding:.6rem .9rem;font-size:12px;color:var(--mt);line-height:1.5}
+
+/* Bloqueados */
+.lock-list{display:flex;flex-direction:column;gap:.5rem;margin-top:.75rem}
+.lock-item{display:flex;align-items:center;gap:.6rem;padding:.65rem 1rem;background:#0d1117;border:1px solid var(--bd);border-radius:8px;font-size:13px;color:var(--mt);filter:blur(2px);user-select:none}
+.lock-icon{flex-shrink:0;color:var(--mt)}
+
+/* Evolução */
+.evol-card{background:var(--sf2);border:1px solid var(--bd2);border-radius:12px;padding:1.25rem 1.5rem;margin-bottom:1.25rem}
+.evol-title{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--mt);margin-bottom:.75rem}
+.evol-scores{display:flex;align-items:center;gap:.75rem;margin-bottom:.6rem;flex-wrap:wrap}
+.evol-box{text-align:center;background:#0d1117;border-radius:8px;padding:.5rem 1rem;min-width:70px}
+.evol-val{font-family:var(--mono);font-size:1.3rem;font-weight:700}
+.evol-lbl{font-size:10px;color:var(--mt);margin-top:2px}
+.evol-arrow{font-size:1.25rem}
+.evol-texto{font-size:13px;color:var(--mt);line-height:1.5}
+
+/* Resumo */
+.stats-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:.65rem;margin-bottom:1.25rem}
+@media(min-width:440px){.stats-grid{grid-template-columns:repeat(4,1fr)}}
+.stat-box{background:var(--sf2);border:1px solid var(--bd);border-radius:8px;padding:.85rem;text-align:center}
+.stat-val{font-family:var(--mono);font-size:1.1rem;font-weight:700}
+.stat-lbl{font-size:10px;color:var(--mt);margin-top:3px}
+
+/* Retenção */
+.retencao{text-align:center;font-size:13px;color:var(--mt);line-height:1.6;margin-bottom:1.5rem;padding:0 .5rem}
+.retencao strong{color:var(--tx)}
+
+/* CTA */
+.cta-card{background:var(--sf2);border:1px solid var(--bd2);border-radius:12px;padding:1.75rem;text-align:center;margin-bottom:1.5rem}
+.cta-texto{font-size:14px;color:var(--mt);margin-bottom:1.25rem;line-height:1.6}
+.btn-wa{display:inline-flex;align-items:center;gap:.6rem;background:#25D366;color:#fff;border:none;padding:.85rem 2rem;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;transition:.2s;text-decoration:none}
+.btn-wa:hover{opacity:.9;transform:translateY(-1px)}
+
 .error-box{background:#f0525210;border:1px solid var(--ls);border-radius:10px;padding:1rem 1.25rem;color:var(--ls);font-size:14px;margin-bottom:1rem}
+@media(max-width:480px){.g2{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 
 <div class="hero">
-  <div class="hero-badge">⚡ Diagnóstico Gratuito</div>
+  <div class="badge">⚡ Diagnóstico gratuito</div>
   <h1>Radar do <span>Trader</span></h1>
-  <p>Envie seu relatório de operações e descubra em segundos o que está destruindo seu resultado.</p>
+  <p>Envie seu relatório e descubra o padrão que está destruindo seu resultado.</p>
   <div class="hero-stats">
     <div class="hero-stat"><strong>Score Gain</strong><small>0 a 100</small></div>
-    <div class="hero-stat"><strong>Diagnóstico IA</strong><small>Personalizado</small></div>
-    <div class="hero-stat"><strong>100% gratuito</strong><small>Sem cadastro prévio</small></div>
+    <div class="hero-stat"><strong>1 padrão revelado</strong><small>baseado no seu histórico</small></div>
+    <div class="hero-stat"><strong>100% gratuito</strong><small>sem cadastro</small></div>
   </div>
 </div>
 
-<div class="form-section" id="form-section">
+<div class="wrap" id="form-section">
   <div class="card">
-    <h2>Seus dados</h2>
+    <h2 style="font-size:1rem;font-weight:600;margin-bottom:1.25rem">Seus dados</h2>
     <div class="g2">
-      <div><label>Nome</label><input id="nome" type="text" placeholder="Seu nome"/></div>
-      <div><label>WhatsApp</label><input id="whatsapp" type="tel" placeholder="11 99999-9999"/></div>
+      <div><label>Nome</label><input id="f-nome" type="text" placeholder="Seu nome"/></div>
+      <div><label>WhatsApp</label><input id="f-wa" type="tel" placeholder="11 99999-9999"/></div>
     </div>
     <label>E-mail</label>
-    <input id="email" type="email" placeholder="seu@email.com"/>
+    <input id="f-email" type="email" placeholder="seu@email.com"/>
   </div>
 
   <div class="card">
-    <h2>Seu relatório de operações</h2>
+    <h2 style="font-size:1rem;font-weight:600;margin-bottom:1.25rem">Relatório de operações</h2>
     <label>Plataforma</label>
-    <select id="plataforma">
+    <select id="f-plat">
       <option value="mt5">MetaTrader 4 / MT5 (.htm ou .html)</option>
       <option value="tradovate">Tradovate (.csv)</option>
     </select>
     <label>Arquivo</label>
-    <div class="upload-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
-      <input type="file" id="file-input" accept=".htm,.html,.csv"/>
-      <div class="upload-icon">📂</div>
-      <p>Arraste o arquivo aqui ou <strong>clique para selecionar</strong></p>
-      <p style="font-size:11px;margin-top:.35rem">MT5: arquivo .htm exportado pelo MetaTrader · Tradovate: .csv de execuções</p>
+    <div class="upload-zone" id="drop" onclick="document.getElementById('f-file').click()">
+      <input type="file" id="f-file" accept=".htm,.html,.csv"/>
+      <div style="font-size:2rem;margin-bottom:.4rem">📂</div>
+      <p style="font-size:13px;color:var(--mt)">Arraste o arquivo ou <strong style="color:var(--ac)">clique aqui</strong></p>
+      <p style="font-size:11px;color:var(--mt);margin-top:.3rem">MT5: .htm exportado pelo MetaTrader · Tradovate: .csv de execuções</p>
     </div>
     <div id="fname"></div>
   </div>
 
-  <button class="btn btn-p" id="btn-gerar" onclick="gerarDiagnostico()">Gerar diagnóstico gratuito →</button>
-  <p class="privacy">Ao enviar seu relatório, você autoriza o processamento dos dados operacionais para gerar seu diagnóstico e melhorar sua experiência no Radar do Trader. Nenhum dado é compartilhado com terceiros.</p>
+  <button class="btn btn-p" id="btn-gerar" onclick="enviar()">Gerar diagnóstico →</button>
+  <p class="privacy">Ao enviar, você autoriza o processamento dos dados operacionais para gerar seu diagnóstico. Nenhum dado é compartilhado com terceiros.</p>
 </div>
 
 <div id="loading">
-  <div class="spinner"></div>
+  <div class="spin"></div>
   <p style="color:var(--mt);font-size:14px">Analisando suas operações...</p>
 </div>
 
 <div id="result"></div>
 
 <script>
-const WEBHOOK_URL = 'https://pbelotto1.app.n8n.cloud/webhook/radar-trader-upload';
-const HOTMART_URL = 'https://pay.hotmart.com/X104148059B';
-const SALA_URL    = '#'; // substituir pelo link real da sala ao vivo
+// ══ CONFIG ══
+const WEBHOOK = 'https://pbelotto1.app.n8n.cloud/webhook/radar-trader-upload';
+// WhatsApp: coloque apenas os dígitos do número com DDI, ex: 5511999999999
+const NUMERO_WA = 'NUMERO_WHATSAPP_AQUI';
 
-const dz = document.getElementById('drop-zone');
-const fi = document.getElementById('file-input');
-dz.addEventListener('dragover', e=>{e.preventDefault();dz.classList.add('over');});
-dz.addEventListener('dragleave', ()=>dz.classList.remove('over'));
-dz.addEventListener('drop', e=>{e.preventDefault();dz.classList.remove('over');if(e.dataTransfer.files[0]){const dt=new DataTransfer();dt.items.add(e.dataTransfer.files[0]);fi.files=dt.files;updateFname();}});
-fi.addEventListener('change', updateFname);
-function updateFname(){const f=fi.files[0];document.getElementById('fname').textContent=f?'✓ '+f.name:'';}
+// Upload
+const drop = document.getElementById('drop');
+const fi = document.getElementById('f-file');
+drop.addEventListener('dragover', e=>{e.preventDefault();drop.classList.add('over');});
+drop.addEventListener('dragleave', ()=>drop.classList.remove('over'));
+drop.addEventListener('drop', e=>{
+  e.preventDefault();drop.classList.remove('over');
+  if(e.dataTransfer.files[0]){
+    const dt=new DataTransfer();dt.items.add(e.dataTransfer.files[0]);fi.files=dt.files;
+    document.getElementById('fname').textContent='✓ '+e.dataTransfer.files[0].name;
+  }
+});
+fi.addEventListener('change', ()=>{
+  document.getElementById('fname').textContent = fi.files[0] ? '✓ '+fi.files[0].name : '';
+});
 
-async function gerarDiagnostico(){
-  const nome=document.getElementById('nome').value.trim();
-  const email=document.getElementById('email').value.trim();
-  const whatsapp=document.getElementById('whatsapp').value.trim();
-  const plataforma=document.getElementById('plataforma').value;
+async function enviar(){
+  const nome=document.getElementById('f-nome').value.trim();
+  const email=document.getElementById('f-email').value.trim();
+  const wa=document.getElementById('f-wa').value.trim();
+  const plat=document.getElementById('f-plat').value;
   const file=fi.files[0];
   if(!nome){alert('Informe seu nome.');return;}
   if(!email||!email.includes('@')){alert('Informe um e-mail válido.');return;}
@@ -148,108 +183,154 @@ async function gerarDiagnostico(){
   document.getElementById('result').style.display='none';
 
   try{
-    const encoding=plataforma==='tradovate'?'UTF-8':'UTF-16LE';
-    const arquivo=await lerArquivo(file,encoding);
-    const res=await fetch(WEBHOOK_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nome,email,whatsapp,plataforma,arquivo,arquivo_nome:file.name})});
+    const enc = plat==='tradovate'?'UTF-8':'UTF-16LE';
+    const arquivo = await lerArq(file, enc);
+    const res = await fetch(WEBHOOK, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({nome,email,whatsapp:wa,plataforma:plat,arquivo,arquivo_nome:file.name})
+    });
     document.getElementById('loading').style.display='none';
-    if(!res.ok)throw new Error('Servidor retornou erro '+res.status);
-    const data=await res.json();
-    if(data.erro||data.error){mostrarErro(data.mensagem||data.message||'Erro ao processar arquivo.');return;}
-    mostrarResultado(data,nome);
+    if(!res.ok) throw new Error('Servidor retornou '+res.status);
+    const data = await res.json();
+    if(!data.ok||data.erro){ mostrarErro(data.mensagem||'Erro ao processar arquivo.');return; }
+    mostrarResultado(data, nome);
   }catch(e){
     document.getElementById('loading').style.display='none';
     mostrarErro('Erro de conexão: '+e.message);
   }
 }
 
-function lerArquivo(file,encoding){
-  return new Promise((resolve,reject)=>{
+function lerArq(file, enc){
+  return new Promise((res,rej)=>{
     const r=new FileReader();
-    r.onload=e=>resolve(e.target.result);
-    r.onerror=()=>reject(new Error('Erro ao ler arquivo'));
-    r.readAsText(file,encoding);
+    r.onload=e=>res(e.target.result);
+    r.onerror=()=>rej(new Error('Erro ao ler arquivo'));
+    r.readAsText(file, enc);
   });
 }
 
 function mostrarErro(msg){
   const el=document.getElementById('result');
   el.style.display='block';
-  el.innerHTML=`<div class="error-box">❌ ${msg}</div><button class="btn btn-p" onclick="voltarForm()">Tentar novamente</button>`;
+  el.innerHTML='<div class="error-box">❌ '+msg+'</div>'
+    +'<div style="max-width:620px;margin:0 auto;padding:0 1.5rem">'
+    +'<button class="btn btn-p" onclick="voltarForm()">← Tentar novamente</button></div>';
 }
-
 function voltarForm(){
   document.getElementById('form-section').style.display='block';
   document.getElementById('btn-gerar').disabled=false;
   document.getElementById('result').style.display='none';
 }
 
-function mostrarResultado(d,nome){
-  const el=document.getElementById('result');
+function scoreColor(s){
+  if(s>=80)return'#22d08a';
+  if(s>=60)return'#f0b429';
+  if(s>=40)return'#f97316';
+  return'#f05252';
+}
+
+function mostrarResultado(d, nome){
+  const el = document.getElementById('result');
   el.style.display='block';
-  const score=d.score||0;
-  const nivel=d.nivel||'-';
-  const cor=d.cor||'#f0b429';
-  const frase=d.frase||'';
-  const razoes=d.razoes||[];
-  const r=d.resumo||{};
-  const total=parseFloat(r.resultado_total||0);
+  const sc = d.score_gain||0;
+  const cor = d.cor || scoreColor(sc);
+  const nivel = d.nivel||'--';
+  const r = d.resumo_basico||{};
+  const ev = d.evolucao||{};
+  const padrao = d.padrao_revelado||{};
+  const bloq = d.padroes_bloqueados||['Padrão #2 bloqueado','Padrão #3 bloqueado','Padrão #4 bloqueado'];
+  const cta = d.cta_sutil||{};
 
-  el.innerHTML=`
-    <div class="score-card">
-      <p style="font-size:12px;color:var(--mt);margin-bottom:.5rem;text-transform:uppercase;letter-spacing:.08em">Score Gain · ${nome}</p>
-      <div class="score-num" style="color:${cor}">${score}</div>
-      <div style="font-size:1rem;font-weight:600;color:${cor};margin:.4rem 0">${nivel}</div>
-      <div class="score-badge" style="background:${cor}22;color:${cor}">${score>=80?'✅':score>=60?'⚠️':score>=40?'🔶':'🔴'} ${nivel}</div>
-      <div class="score-bar-wrap"><div class="score-bar" id="sbar" style="background:${cor}"></div></div>
-      <p style="font-size:11px;color:var(--mt)">0 — Modo sabotagem &nbsp;|&nbsp; 100 — Comportamento alinhado</p>
-    </div>
+  // Build WhatsApp URL
+  const waMsg = encodeURIComponent('Meu Score Gain foi '+sc+' e quero entender melhor o diagnóstico.');
+  const waFinal = cta.url && !cta.url.includes('NUMERO_WHATSAPP')
+    ? cta.url
+    : 'https://wa.me/'+NUMERO_WA+'?text='+waMsg;
 
-    <div class="card">
-      <div class="section-title">Diagnóstico gratuito</div>
-      <div class="diag-frase">"${frase}"</div>
-      ${razoes.length?`<div class="section-title" style="margin-top:1rem">Principais fatores de desconto</div>${razoes.map(raz=>`<div class="razao"><span class="razao-icon">▼</span><span>${raz}</span></div>`).join('')}`:''}
-      <div class="section-title" style="margin-top:1.25rem">Resumo operacional</div>
-      <div class="stats-grid">
-        <div class="stat-box"><div class="stat-val">${r.total_trades||0}</div><div class="stat-lbl">Operações</div></div>
-        <div class="stat-box"><div class="stat-val" style="color:${total>=0?'var(--gn)':'var(--ls)'}">${total>=0?'+':''}$${r.resultado_total||'0.00'}</div><div class="stat-lbl">Resultado total</div></div>
-        <div class="stat-box"><div class="stat-val">${r.taxa_acerto||'-'}</div><div class="stat-lbl">Taxa de acerto</div></div>
-        <div class="stat-box"><div class="stat-val">${r.profit_factor||'-'}</div><div class="stat-lbl">Profit factor</div></div>
-        <div class="stat-box"><div class="stat-val">${r.avg_trades_dia||'-'}</div><div class="stat-lbl">Trades/dia</div></div>
-        <div class="stat-box"><div class="stat-val">${r.max_seq_perdas||0}</div><div class="stat-lbl">Máx. seq. perdas</div></div>
-      </div>
-      <div style="display:flex;gap:.65rem;flex-wrap:wrap">
-        <div class="stat-box" style="flex:1;min-width:120px"><div class="stat-val" style="color:var(--gn);font-size:.95rem">${r.melhor_ativo||'-'}</div><div class="stat-lbl">Melhor ativo</div></div>
-        <div class="stat-box" style="flex:1;min-width:120px"><div class="stat-val" style="color:var(--ls);font-size:.95rem">${r.pior_ativo||'-'}</div><div class="stat-lbl">Pior ativo</div></div>
-      </div>
-    </div>
+  // Evolução
+  let evolHtml = '';
+  if(ev.score_anterior !== null && ev.score_anterior !== undefined){
+    const vari = ev.variacao||0;
+    const variCor = vari>0?'var(--gn)':vari<0?'var(--ls)':'var(--mt)';
+    const variSym = vari>0?'↑ +'+vari:vari<0?'↓ '+vari:'→ 0';
+    evolHtml = '<div class="evol-scores">'
+      +'<div class="evol-box"><div class="evol-val" style="color:var(--mt)">'+(ev.score_anterior||0)+'</div><div class="evol-lbl">Anterior</div></div>'
+      +'<div class="evol-arrow" style="color:'+variCor+'">'+variSym+'</div>'
+      +'<div class="evol-box"><div class="evol-val" style="color:'+cor+'">'+sc+'</div><div class="evol-lbl">Atual</div></div>'
+      +'</div>';
+  }
 
-    <div class="premium">
-      <div style="font-size:1.5rem;margin-bottom:.5rem">🔒</div>
-      <h3>Radar de Armadilhas <span style="font-size:11px;background:#4f7fff22;color:var(--ac);border:1px solid var(--ac);border-radius:10px;padding:.15rem .6rem;margin-left:.4rem">MEMBRO</span></h3>
-      <p>O diagnóstico gratuito mostrou o problema.<br>O <strong>Radar de Armadilhas</strong> mostra quando você está prestes a repetir esse erro — antes de clicar.</p>
-      <div class="blur-prev">
-        Análise do próximo trade: NQ · Intenção de compra · Risco 7/10<br>
-        Seu comportamento neste ativo mostra padrão de entrada em exaustão de tendência...<br>
-        Veredito: ⚠️ Armadilha provável · Aguarde confirmação de estrutura no M5
-      </div>
-      <button class="btn-gain" onclick="window.open('${HOTMART_URL}','_blank')">Entrar para o Clube do Gain →</button>
-      <p style="font-size:11px;color:var(--mt);margin-top:.75rem">"O mercado não precisa te vencer. Basta você repetir o mesmo erro."</p>
-    </div>
+  // Resultado color
+  const totVal = parseFloat(r.resultado_liquido||0);
+  const totCor = totVal>=0?'var(--gn)':'var(--ls)';
+  const totFmt = (totVal>=0?'+':'')+'$'+Math.abs(totVal).toFixed(2);
 
-    <div class="sala-card">
-      <div style="font-size:2rem">🎯</div>
-      <div class="sala-txt">
-        <h4>Sala Ao Vivo — Clube do Gain</h4>
-        <p>O software mostra o padrão. Na sala ao vivo você entende o contexto, o timing e a execução com Paulo Belotto.</p>
-      </div>
-      <button class="btn-gain" style="white-space:nowrap;padding:.7rem 1.5rem" onclick="window.open('${SALA_URL}','_blank')">Entrar na sala →</button>
-    </div>
+  el.innerHTML =
+    // 1. Score
+    '<div class="score-card">'
+    +'<p class="score-top">Score Gain · '+nome+'</p>'
+    +'<div class="score-num" style="color:'+cor+'">'+sc+'</div>'
+    +'<div class="score-nivel" style="color:'+cor+'">'+nivel+'</div>'
+    +'<div class="score-bdg" style="background:'+cor+'22;color:'+cor+'">'+(sc>=80?'✅':sc>=60?'⚠️':sc>=40?'🔶':'🔴')+' '+nivel+'</div>'
+    +'<div class="score-bar-wrap"><div class="score-bar" id="sbar" style="background:'+cor+'"></div></div>'
+    +'<p class="score-range">0 — Modo sabotagem &nbsp;|&nbsp; 100 — Comportamento alinhado</p>'
+    +'</div>'
 
-    <p style="text-align:center;margin-top:1.5rem">
-      <button style="background:none;border:none;color:var(--ac);cursor:pointer;font-size:13px" onclick="voltarForm()">← Analisar outro arquivo</button>
-    </p>`;
+    // 2. Headline
+    +(d.headline?'<div class="headline-card"><p>"'+d.headline+'"</p></div>':'')
 
-  setTimeout(()=>{const b=document.getElementById('sbar');if(b)b.style.width=score+'%';},150);
+    // 3. Padrão revelado
+    +(padrao.titulo?
+      '<div class="padrao-card">'
+      +'<div class="padrao-tag">⚡ '+padrao.titulo+'</div>'
+      +'<p class="padrao-texto">'+padrao.texto+'</p>'
+      +(padrao.impacto?'<div class="padrao-impacto">💡 '+padrao.impacto+'</div>':'')
+      +'</div>':'')
+
+    // 4. Padrões bloqueados
+    +'<div class="card">'
+    +'<p style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--mt);margin-bottom:.5rem">Outros padrões identificados</p>'
+    +'<div class="lock-list">'
+    +bloq.map(b=>'<div class="lock-item"><span class="lock-icon">🔒</span><span>'+b+'</span></div>').join('')
+    +'</div>'
+    +'<p style="font-size:11px;color:var(--mt);margin-top:.75rem;line-height:1.5">Esses padrões foram detectados no seu histórico mas não estão disponíveis nesta versão.</p>'
+    +'</div>'
+
+    // 5. Evolução
+    +'<div class="evol-card">'
+    +'<div class="evol-title">Evolução do Score</div>'
+    +evolHtml
+    +'<p class="evol-texto">'+( ev.texto||'Este é seu primeiro diagnóstico. A evolução começa a partir do próximo upload.')+'</p>'
+    +'</div>'
+
+    // 6. Resumo básico
+    +'<div class="stats-grid">'
+    +'<div class="stat-box"><div class="stat-val">'+(r.total_operacoes||0)+'</div><div class="stat-lbl">Operações</div></div>'
+    +'<div class="stat-box"><div class="stat-val" style="color:'+totCor+'">'+totFmt+'</div><div class="stat-lbl">Resultado</div></div>'
+    +'<div class="stat-box"><div class="stat-val">'+(r.taxa_acerto||0)+'%</div><div class="stat-lbl">Taxa de acerto</div></div>'
+    +'<div class="stat-box"><div class="stat-val">'+(r.profit_factor||'--')+'</div><div class="stat-lbl">Profit factor</div></div>'
+    +'</div>'
+
+    // 7. Retenção
+    +'<div class="retencao"><strong>📅 '+( d.retencao||'Faça novo upload amanhã para ver se seu Score melhorou.')+'</strong></div>'
+
+    // 8. CTA WhatsApp
+    +'<div class="cta-card">'
+    +'<p class="cta-texto">'+(cta.texto||'Alguns traders preferem acompanhar essas leituras em tempo real.')+'</p>'
+    +'<a class="btn-wa" href="'+waFinal+'" target="_blank">'
+    +'<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>'
+    +(cta.botao||'Ver acompanhamento')
+    +'</a>'
+    +'</div>'
+
+    // 9. Voltar
+    +'<p style="text-align:center">'
+    +'<button style="background:none;border:none;color:var(--ac);cursor:pointer;font-size:13px" onclick="voltarForm()">← Analisar outro arquivo</button>'
+    +'</p>';
+
+  // Animate bar
+  setTimeout(()=>{ const b=document.getElementById('sbar'); if(b) b.style.width=sc+'%'; },150);
   window.scrollTo({top:0,behavior:'smooth'});
 }
 </script>

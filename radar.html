@@ -23,6 +23,9 @@ input,select{width:100%;background:#0d1117;border:1px solid var(--bd2);border-ra
 input:focus,select:focus{border-color:var(--ac)}
 select option{background:#0d1117}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.phone-grid{display:grid;grid-template-columns:100px 90px 1fr;gap:.75rem;margin-bottom:1rem}
+.phone-grid select,.phone-grid input{margin-bottom:.25rem}
+.phone-grid small{font-size:10px;color:var(--mt);display:block}
 .upload-zone{border:2px dashed var(--bd2);border-radius:10px;padding:2rem;text-align:center;cursor:pointer;transition:.2s;margin-bottom:.5rem}
 .upload-zone:hover,.upload-zone.over{border-color:var(--ac);background:#4f7fff0a}
 .upload-zone input{display:none}
@@ -90,7 +93,7 @@ select option{background:#0d1117}
 .btn-wa:hover{opacity:.9;transform:translateY(-1px)}
 
 .error-box{background:#f0525210;border:1px solid var(--ls);border-radius:10px;padding:1rem 1.25rem;color:var(--ls);font-size:14px;margin-bottom:1rem}
-@media(max-width:480px){.g2{grid-template-columns:1fr}}
+@media(max-width:480px){.g2{grid-template-columns:1fr}.phone-grid{grid-template-columns:90px 80px 1fr}}
 </style>
 </head>
 <body>
@@ -111,10 +114,29 @@ select option{background:#0d1117}
     <h2 style="font-size:1rem;font-weight:600;margin-bottom:1.25rem">Seus dados</h2>
     <div class="g2">
       <div><label>Nome</label><input id="f-nome" type="text" placeholder="Seu nome"/></div>
-      <div><label>WhatsApp</label><input id="f-wa" type="tel" placeholder="11 99999-9999"/></div>
+      <div><label>E-mail</label><input id="f-email" type="email" placeholder="seu@email.com"/></div>
     </div>
-    <label>E-mail</label>
-    <input id="f-email" type="email" placeholder="seu@email.com"/>
+    <label>WhatsApp</label>
+    <div class="phone-grid">
+      <div>
+        <select id="f-ddi">
+          <option value="55">🇧🇷 +55</option>
+          <option value="1">🇺🇸 +1</option>
+          <option value="351">🇵🇹 +351</option>
+          <option value="44">🇬🇧 +44</option>
+          <option value="34">🇪🇸 +34</option>
+        </select>
+        <small>DDI (país)</small>
+      </div>
+      <div>
+        <input id="f-ddd" type="tel" inputmode="numeric" placeholder="11" maxlength="3"/>
+        <small>DDD</small>
+      </div>
+      <div>
+        <input id="f-num" type="tel" inputmode="numeric" placeholder="99999-9999"/>
+        <small>Número</small>
+      </div>
+    </div>
   </div>
 
   <div class="card">
@@ -148,8 +170,9 @@ select option{background:#0d1117}
 <script>
 // ══ CONFIG ══
 const WEBHOOK = 'https://pbelotto1.app.n8n.cloud/webhook/radar-trader-upload';
-// WhatsApp: coloque apenas os dígitos do número com DDI, ex: 5511999999999
-const NUMERO_WA = 'NUMERO_WHATSAPP_AQUI';
+// WhatsApp de atendimento (para onde o lead é direcionado no CTA).
+// Coloque apenas os dígitos com DDI, ex: 5511995565900
+const NUMERO_WA = '5511995565900';
 
 // Upload
 const drop = document.getElementById('drop');
@@ -170,11 +193,16 @@ fi.addEventListener('change', ()=>{
 async function enviar(){
   const nome=document.getElementById('f-nome').value.trim();
   const email=document.getElementById('f-email').value.trim();
-  const wa=document.getElementById('f-wa').value.trim();
+  const ddi=document.getElementById('f-ddi').value.replace(/\D/g,'');
+  const ddd=document.getElementById('f-ddd').value.replace(/\D/g,'');
+  const num=document.getElementById('f-num').value.replace(/\D/g,'');
+  // Junta tudo, só dígitos: ex 5511999999999 — mesmo formato que o Z-API entrega
+  const wa = ddi+ddd+num;
   const plat=document.getElementById('f-plat').value;
   const file=fi.files[0];
   if(!nome){alert('Informe seu nome.');return;}
   if(!email||!email.includes('@')){alert('Informe um e-mail válido.');return;}
+  if(!ddd||!num){alert('Informe o DDD e o número do WhatsApp.');return;}
   if(!file){alert('Selecione o arquivo de operações.');return;}
 
   document.getElementById('btn-gerar').disabled=true;
@@ -194,7 +222,7 @@ async function enviar(){
     if(!res.ok) throw new Error('Servidor retornou '+res.status);
     const data = await res.json();
     if(!data.ok||data.erro){ mostrarErro(data.mensagem||'Erro ao processar arquivo.');return; }
-    mostrarResultado(data, nome);
+    mostrarResultado(data, nome, wa);
   }catch(e){
     document.getElementById('loading').style.display='none';
     mostrarErro('Erro de conexão: '+e.message);
@@ -230,7 +258,7 @@ function scoreColor(s){
   return'#f05252';
 }
 
-function mostrarResultado(d, nome){
+function mostrarResultado(d, nome, wa){
   const el = document.getElementById('result');
   el.style.display='block';
   const sc = d.score_gain||0;

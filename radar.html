@@ -120,23 +120,83 @@ select option{background:#0d1117}
     <div class="phone-grid">
       <div>
         <select id="f-ddi">
-          <option value="55">🇧🇷 +55</option>
-          <option value="1">🇺🇸 +1</option>
-          <option value="351">🇵🇹 +351</option>
-          <option value="44">🇬🇧 +44</option>
-          <option value="34">🇪🇸 +34</option>
+          <optgroup label="América do Sul">
+            <option value="55" data-short="🇧🇷 +55" selected>🇧🇷 Brasil +55</option>
+            <option value="54" data-short="🇦🇷 +54">🇦🇷 Argentina +54</option>
+            <option value="591" data-short="🇧🇴 +591">🇧🇴 Bolívia +591</option>
+            <option value="56" data-short="🇨🇱 +56">🇨🇱 Chile +56</option>
+            <option value="57" data-short="🇨🇴 +57">🇨🇴 Colômbia +57</option>
+            <option value="593" data-short="🇪🇨 +593">🇪🇨 Equador +593</option>
+            <option value="595" data-short="🇵🇾 +595">🇵🇾 Paraguai +595</option>
+            <option value="51" data-short="🇵🇪 +51">🇵🇪 Peru +51</option>
+            <option value="598" data-short="🇺🇾 +598">🇺🇾 Uruguai +598</option>
+            <option value="58" data-short="🇻🇪 +58">🇻🇪 Venezuela +58</option>
+          </optgroup>
+          <optgroup label="América do Norte / Central">
+            <option value="1" data-short="🇺🇸 +1">🇺🇸 EUA / Canadá +1</option>
+            <option value="52" data-short="🇲🇽 +52">🇲🇽 México +52</option>
+            <option value="506" data-short="🇨🇷 +506">🇨🇷 Costa Rica +506</option>
+            <option value="507" data-short="🇵🇦 +507">🇵🇦 Panamá +507</option>
+          </optgroup>
+          <optgroup label="Europa">
+            <option value="351" data-short="🇵🇹 +351">🇵🇹 Portugal +351</option>
+            <option value="34" data-short="🇪🇸 +34">🇪🇸 Espanha +34</option>
+            <option value="44" data-short="🇬🇧 +44">🇬🇧 Reino Unido +44</option>
+            <option value="353" data-short="🇮🇪 +353">🇮🇪 Irlanda +353</option>
+            <option value="33" data-short="🇫🇷 +33">🇫🇷 França +33</option>
+            <option value="49" data-short="🇩🇪 +49">🇩🇪 Alemanha +49</option>
+            <option value="39" data-short="🇮🇹 +39">🇮🇹 Itália +39</option>
+            <option value="41" data-short="🇨🇭 +41">🇨🇭 Suíça +41</option>
+            <option value="31" data-short="🇳🇱 +31">🇳🇱 Holanda +31</option>
+            <option value="32" data-short="🇧🇪 +32">🇧🇪 Bélgica +32</option>
+            <option value="43" data-short="🇦🇹 +43">🇦🇹 Áustria +43</option>
+            <option value="48" data-short="🇵🇱 +48">🇵🇱 Polônia +48</option>
+            <option value="46" data-short="🇸🇪 +46">🇸🇪 Suécia +46</option>
+            <option value="47" data-short="🇳🇴 +47">🇳🇴 Noruega +47</option>
+            <option value="45" data-short="🇩🇰 +45">🇩🇰 Dinamarca +45</option>
+            <option value="358" data-short="🇫🇮 +358">🇫🇮 Finlândia +358</option>
+            <option value="30" data-short="🇬🇷 +30">🇬🇷 Grécia +30</option>
+            <option value="420" data-short="🇨🇿 +420">🇨🇿 Tchéquia +420</option>
+            <option value="40" data-short="🇷🇴 +40">🇷🇴 Romênia +40</option>
+            <option value="36" data-short="🇭🇺 +36">🇭🇺 Hungria +36</option>
+          </optgroup>
+          <optgroup label="Ásia / Oriente Médio">
+            <option value="971" data-short="🇦🇪 +971">🇦🇪 Emirados +971</option>
+            <option value="972" data-short="🇮🇱 +972">🇮🇱 Israel +972</option>
+            <option value="90" data-short="🇹🇷 +90">🇹🇷 Turquia +90</option>
+            <option value="91" data-short="🇮🇳 +91">🇮🇳 Índia +91</option>
+            <option value="86" data-short="🇨🇳 +86">🇨🇳 China +86</option>
+            <option value="81" data-short="🇯🇵 +81">🇯🇵 Japão +81</option>
+            <option value="82" data-short="🇰🇷 +82">🇰🇷 Coreia do Sul +82</option>
+            <option value="65" data-short="🇸🇬 +65">🇸🇬 Singapura +65</option>
+            <option value="63" data-short="🇵🇭 +63">🇵🇭 Filipinas +63</option>
+            <option value="66" data-short="🇹🇭 +66">🇹🇭 Tailândia +66</option>
+            <option value="62" data-short="🇮🇩 +62">🇮🇩 Indonésia +62</option>
+          </optgroup>
+          <optgroup label="Oceania / África">
+            <option value="61" data-short="🇦🇺 +61">🇦🇺 Austrália +61</option>
+            <option value="64" data-short="🇳🇿 +64">🇳🇿 Nova Zelândia +64</option>
+            <option value="27" data-short="🇿🇦 +27">🇿🇦 África do Sul +27</option>
+            <option value="244" data-short="🇦🇴 +244">🇦🇴 Angola +244</option>
+            <option value="258" data-short="🇲🇿 +258">🇲🇿 Moçambique +258</option>
+          </optgroup>
         </select>
         <small>DDI (país)</small>
       </div>
       <div>
-        <input id="f-ddd" type="tel" inputmode="numeric" placeholder="11" maxlength="3"/>
-        <small>DDD</small>
+        <input id="f-ddd" type="tel" inputmode="numeric" placeholder="ex: 11" maxlength="4"/>
+        <small>DDD / área</small>
       </div>
       <div>
-        <input id="f-num" type="tel" inputmode="numeric" placeholder="99999-9999"/>
-        <small>Número</small>
+        <input id="f-num" type="tel" inputmode="numeric" placeholder="ex: 999998888"/>
+        <small>Número (só dígitos)</small>
       </div>
     </div>
+    <p style="font-size:11px;color:var(--mt);margin:-.5rem 0 1rem;line-height:1.5">
+      📱 Use o mesmo número do seu WhatsApp. Digite apenas os números, sem o zero inicial.
+      <br><strong style="color:var(--tx)">Brasil +55:</strong> DDD <strong>11</strong> + número <strong>987654321</strong> &nbsp;·&nbsp;
+      <strong style="color:var(--tx)">EUA +1:</strong> área <strong>305</strong> + número <strong>7803001</strong>
+    </p>
   </div>
 
   <div class="card">
@@ -189,6 +249,22 @@ drop.addEventListener('drop', e=>{
 fi.addEventListener('change', ()=>{
   document.getElementById('fname').textContent = fi.files[0] ? '✓ '+fi.files[0].name : '';
 });
+
+// DDI: mostra só bandeira + código no campo fechado, nome completo na lista aberta
+const ddiSel = document.getElementById('f-ddi');
+function updateDdiDisplay(){
+  for(const opt of ddiSel.options){
+    const full = opt.dataset.full || opt.textContent;
+    if(!opt.dataset.full) opt.dataset.full = full; // guarda o nome completo uma vez
+    opt.textContent = opt.selected ? (opt.dataset.short || opt.dataset.full) : opt.dataset.full;
+  }
+}
+ddiSel.addEventListener('focus', ()=>{ // ao abrir, mostra nomes completos
+  for(const opt of ddiSel.options) opt.textContent = opt.dataset.full || opt.textContent;
+});
+ddiSel.addEventListener('change', updateDdiDisplay);
+ddiSel.addEventListener('blur', updateDdiDisplay);
+updateDdiDisplay(); // estado inicial
 
 async function enviar(){
   const nome=document.getElementById('f-nome').value.trim();
